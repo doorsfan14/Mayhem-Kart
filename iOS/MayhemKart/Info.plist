@@ -12,5 +12,11 @@
     <key>UILaunchScreen</key><dict/>
     <key>UISupportedInterfaceOrientations</key>
     <array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Mayhem Kart uses the local network to find nearby players.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_mayhemkart._tcp</string>
+    </array>
 </dict>
 </plist>
