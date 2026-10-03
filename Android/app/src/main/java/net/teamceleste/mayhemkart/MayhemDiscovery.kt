@@ -10,8 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MayhemDiscovery(context: Context) {
     companion object {
         const val SERVICE_TYPE = "_mayhemkart._tcp"
-        const val SERVICE_NAME_PREFIX = "Mayhem Kart"
-        const val MAX_PLAYERS = 4
+                const val MAX_PLAYERS = 4
     }
     private val nsd = context.applicationContext.getSystemService(Context.NSD_SERVICE) as NsdManager
     private var registration: NsdManager.RegistrationListener? = null
@@ -41,7 +40,7 @@ class MayhemDiscovery(context: Context) {
         }.start()
 
         val serviceInfo = NsdServiceInfo().apply {
-            serviceName = SERVICE_NAME_PREFIX + " " + android.os.Build.MODEL
+            serviceName = android.os.Build.MODEL
             serviceType = SERVICE_TYPE
             port = serverSocket!!.localPort
         }
