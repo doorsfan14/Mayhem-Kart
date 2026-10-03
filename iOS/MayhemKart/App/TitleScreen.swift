@@ -5,71 +5,40 @@ struct TitleScreen: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.08)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            Color.black
+                .ignoresSafeArea()
 
-            HStack {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("MAYHEM KART")
-                        .font(.system(size: 42, weight: .black, design: .rounded))
-                        .tracking(2)
-
-                    MenuButton(title: "Play") {}
-                    MenuButton(title: "Play 1/2/3/4") {}
-                    MenuButton(title: "Online Play") {}
-                    MenuButton(title: "Settings") {}
-                    
-                    Spacer()
-                }
-                .frame(width: 300, alignment: .leading)
-                .padding(.leading, 56)
-                .padding(.top, 54)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("MAYHEM KART")
+                Button("Play") {}
+                Button("Play 1/2/3/4") {}
+                Button("Online Play") {}
+                Button("Settings") {}
 
                 Spacer()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(20)
+            .ignoresSafeArea()
 
             VStack {
                 Spacer()
+
                 HStack {
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
+
+                    VStack(alignment: .trailing, spacing: 2) {
                         Text(version)
                         Text("Unauthorized distribution or disclosure is prohibited.")
                         Text("© 2026 Team Celeste™. All rights reserved.")
                     }
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.55))
+                    .font(.caption2)
                     .multilineTextAlignment(.trailing)
-                    .padding(.trailing, 28)
-                    .padding(.bottom, 20)
                 }
             }
+            .padding(8)
+            .ignoresSafeArea()
         }
         .preferredColorScheme(.dark)
-    }
-}
-
-private struct MenuButton: View {
-    let title: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 21, weight: .semibold, design: .rounded))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 13)
-                .padding(.horizontal, 18)
-                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(.white.opacity(0.12), lineWidth: 1)
-                }
-        }
-        .buttonStyle(.plain)
     }
 }
