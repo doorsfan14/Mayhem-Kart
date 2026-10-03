@@ -1,19 +1,18 @@
 package net.teamceleste.mayhemkart
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.concurrent.Executors
 
 class MayhemSession {
-    companion object {
-        const val PROTOCOL_VERSION = 1
-        const val ENGINE_VERSION = "26.0"
-    }
     private val executor = Executors.newSingleThreadExecutor()
     private var socket: Socket? = null
+    private var initiatedConnection = false
+    private var receivedHello = false
+    private var connected = false
+
     var onConnected: (() -> Unit)? = null
     var onDisconnected: ((Exception?) -> Unit)? = null
     var onRejected: ((String) -> Unit)? = null
@@ -21,11 +20,12 @@ class MayhemSession {
 
     fun connect(host: String, port: Int) {
         disconnect()
+        initiatedConnection = true
         executor.execute {
             try {
-                val socket = Socket()
-                socket.connect(InetSocketAddress(host, port), 3000)
-                runHandshake(socket)
+                val next = Socket()
+                next.connect(InetSocketAddress(host, port), 3000)
+                runHandshake(next)
             } catch (error: Exception) {
                 onDisconnected?.invoke(error)
             }
@@ -34,57 +34,95 @@ class MayhemSession {
 
     fun accept(accepted: Socket) {
         disconnect()
+        initiatedConnection = false
         executor.execute { runHandshake(accepted) }
     }
 
-    private fun runHandshake(socket: Socket) {
+    private fun runHandshake(next: Socket) {
         try {
-            this.socket = socket
-            val writer = OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8)
-            val reader = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
-            val name = android.os.Build.MODEL.replace("\t", " ").replace("\n", " ")
-            writer.write("MAYHEM\tHELLO\t$PROTOCOL_VERSION\t$ENGINE_VERSION\t$name\n")
-            writer.flush()
+            socket = next
+            next.tcpNoDelay = true
+            val output = DataOutputStream(next.getOutputStream())
+            val input = DataInputStream(next.getInputStream())
 
-            val response = reader.readLine() ?: throw IllegalStateException("Peer closed the connection during handshake.")
-            val parts = response.split("\t")
-            if (parts.size < 2 || parts[0] != "MAYHEM") {
-                onRejected?.invoke("Invalid Mayhem Kart message.")
-                disconnect()
-                return
-            }
-            when (parts[1]) {
-                "HELLO" -> {
-                    if (parts.size != 5 || parts[2].toIntOrNull() != PROTOCOL_VERSION) {
-                        onRejected?.invoke("Incompatible protocol version.")
+            val name = android.os.Build.MODEL
+                .replace("\t", " ")
+                .replace("\n", " ")
+                .replace("\r", " ")
+
+            MayhemProtocol.write(
+                output,
+                MayhemPacket.Hello(
+                    MayhemProtocol.PROTOCOL_VERSION,
+                    MayhemProtocol.ENGINE_VERSION,
+                    name
+                )
+            )
+
+            while (socket != null) {
+                when (val packet = MayhemProtocol.read(input)) {
+                    is MayhemPacket.Hello -> {
+                        if (packet.version != MayhemProtocol.PROTOCOL_VERSION ||
+                            packet.engine != MayhemProtocol.ENGINE_VERSION ||
+                            receivedHello
+                        ) {
+                            reject("Incompatible Mayhem Kart version.")
+                            return
+                        }
+                        receivedHello = true
+                        if (initiatedConnection) continue
+
+                        onPeerRequest?.invoke(packet.deviceName) { allowed ->
+                            if (allowed) {
+                                runCatching {
+                                    MayhemProtocol.write(output, MayhemPacket.Accept)
+                                    markConnected()
+                                }.onFailure { onDisconnected?.invoke(it as? Exception) }
+                            } else {
+                                runCatching {
+                                    MayhemProtocol.write(
+                                        output,
+                                        MayhemPacket.Reject("The host declined the connection.")
+                                    )
+                                }
+                                disconnect()
+                            }
+                        }
+                        return
+                    }
+
+                    MayhemPacket.Accept -> {
+                        if (initiatedConnection) markConnected()
+                        return
+                    }
+
+                    is MayhemPacket.Reject -> {
+                        onRejected?.invoke(packet.reason)
                         disconnect()
                         return
                     }
-                    val deviceName = parts[4].ifEmpty { "Unknown Device" }
-                    onPeerRequest?.invoke(deviceName) { allowed ->
-                        val command = if (allowed) "ACCEPT" else "REJECT"
-                        writer.write("MAYHEM\t" + command + "\n")
-                        writer.flush()
-                        if (allowed) onConnected?.invoke() else disconnect()
-                    }
-                }
-                "ACCEPT" -> onConnected?.invoke()
-                "REJECT" -> {
-                    onRejected?.invoke("The host declined the connection.")
-                    disconnect()
-                }
-                else -> {
-                    onRejected?.invoke("Invalid Mayhem Kart message.")
-                    disconnect()
                 }
             }
         } catch (error: Exception) {
-            onDisconnected?.invoke(error)
+            if (socket != null) onDisconnected?.invoke(error)
         }
+    }
+
+    private fun markConnected() {
+        if (connected) return
+        connected = true
+        onConnected?.invoke()
+    }
+
+    private fun reject(reason: String) {
+        onRejected?.invoke(reason)
+        disconnect()
     }
 
     fun disconnect() {
         runCatching { socket?.close() }
         socket = null
+        receivedHello = false
+        connected = false
     }
 }
