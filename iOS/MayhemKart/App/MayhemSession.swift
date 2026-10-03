@@ -14,10 +14,21 @@ final class MayhemSession {
 
     func connect(to endpoint: NWEndpoint) {
         disconnect()
+        start(NWConnection(to: endpoint, using: .tcp))
+    }
 
-        let connection = NWConnection(to: endpoint, using: .tcp)
+    func accept(_ connection: NWConnection) {
+        disconnect()
+        start(connection)
+    }
+
+    func disconnect() {
+        connection?.cancel()
+        connection = nil
+    }
+
+    private func start(_ connection: NWConnection) {
         self.connection = connection
-
         connection.stateUpdateHandler = { [weak self] state in
             switch state {
             case .ready:
@@ -30,48 +41,34 @@ final class MayhemSession {
                 break
             }
         }
-
         connection.start(queue: queue)
-    }
-
-    func disconnect() {
-        connection?.cancel()
-        connection = nil
     }
 
     private func sendHello() {
         let hello = "MAYHEM\tHELLO\t\(Self.protocolVersion)\t\(Self.engineVersion)\n"
-        connection?.send(
-            content: hello.data(using: .utf8),
-            completion: .contentProcessed { [weak self] error in
-                if let error {
-                    self?.onDisconnected?(error)
-                    return
-                }
-                self?.receiveHello()
+        connection?.send(content: hello.data(using: .utf8), completion: .contentProcessed { [weak self] error in
+            if let error {
+                self?.onDisconnected?(error)
+                return
             }
-        )
+            self?.receiveHello()
+        })
     }
 
     private func receiveHello() {
         connection?.receive(minimumIncompleteLength: 1, maximumLength: 1024) { [weak self] data, _, isComplete, error in
             guard let self else { return }
-
             if let error {
                 self.onDisconnected?(error)
                 return
             }
-
             if isComplete {
                 self.onDisconnected?(nil)
                 return
             }
 
-            guard
-                let data,
-                let message = String(data: data, encoding: .utf8),
-                let hello = Self.parseHello(message)
-            else {
+            guard let data, let message = String(data: data, encoding: .utf8),
+                  let hello = Self.parseHello(message) else {
                 self.onRejected?("Invalid Mayhem Kart handshake.")
                 self.disconnect()
                 return
