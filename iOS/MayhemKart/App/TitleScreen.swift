@@ -13,6 +13,7 @@ struct TitleScreen: View {
 
     @State private var peers: [Peer] = []
     @State private var showingOnline = false
+    @State private var showingGame = false
     @State private var status = ""
     @State private var joinRequestName: String?
     @State private var joinReply: ((Bool) -> Void)?
@@ -23,7 +24,9 @@ struct TitleScreen: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("MAYHEM KART")
-                Button("Play") {}
+                Button("Play") {
+                    showingGame = true
+                }
 
                 Button("Online Play") {
                     showingOnline.toggle()
@@ -79,6 +82,9 @@ struct TitleScreen: View {
             .ignoresSafeArea(edges: .bottom)
         }
         .preferredColorScheme(.dark)
+        .fullScreenCover(isPresented: $showingGame) {
+            GameView()
+        }
         .onAppear {
             discovery.onPeerFound = { result in
                 let id = String(describing: result.endpoint)
