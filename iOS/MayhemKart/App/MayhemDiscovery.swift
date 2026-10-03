@@ -9,29 +9,28 @@ final class MayhemDiscovery: NSObject {
 
     private var listener: NWListener?
     private var browser: NWBrowser?
+    private var session: MayhemSession?
 
     var onPeerFound: ((NWBrowser.Result) -> Void)?
     var onPeerLost: ((NWBrowser.Result) -> Void)?
+    var onPeerConnected: (() -> Void)?
+    var onPeerRejected: ((String) -> Void)?
 
     func start() {
         stop()
 
         do {
             let listener = try NWListener(using: .tcp)
-            listener.service = NWListener.Service(
-                name: "Mayhem Kart iOS",
-                type: Self.serviceType
-            )
+            listener.service = NWListener.Service(name: "Mayhem Kart iOS", type: Self.serviceType)
 
             listener.stateUpdateHandler = { [weak self] state in
-                guard self != nil else { return }
                 if case .failed = state {
                     self?.listener?.cancel()
                 }
             }
 
-            listener.newConnectionHandler = { connection in
-                connection.cancel()
+            listener.newConnectionHandler = { [weak self] connection in
+                self?.beginSession(with: connection)
             }
 
             listener.start(queue: listenerQueue)
@@ -50,13 +49,13 @@ final class MayhemDiscovery: NSObject {
                 switch change {
                 case .added(let result):
                     self?.onPeerFound?(result)
+                    self?.beginSession(with: result.endpoint)
                 case .removed(let result):
                     self?.onPeerLost?(result)
                 default:
                     break
                 }
             }
-
             _ = results
         }
 
@@ -65,7 +64,29 @@ final class MayhemDiscovery: NSObject {
         self.browser = browser
     }
 
+    private func beginSession(with endpoint: NWEndpoint) {
+        if session != nil { return }
+
+        let session = MayhemSession()
+        session.onConnected = { [weak self] in
+            self?.onPeerConnected?()
+        }
+        session.onRejected = { [weak self] reason in
+            self?.onPeerRejected?(reason)
+            self?.session?.disconnect()
+            self?.session = nil
+        }
+        session.onDisconnected = { [weak self] _ in
+            self?.session = nil
+        }
+
+        self.session = session
+        session.connect(to: endpoint)
+    }
+
     func stop() {
+        session?.disconnect()
+        session = nil
         listener?.cancel()
         browser?.cancel()
         listener = nil
