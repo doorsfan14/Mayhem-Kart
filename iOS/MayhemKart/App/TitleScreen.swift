@@ -148,7 +148,7 @@ struct TitleScreen: View {
                 joinReply = nil
             }
         } message: {
-            Text("Device Name: (joinRequestName ?? "Unknown Device")")
+            Text("Device Name: \(joinRequestName ?? "Unknown Device")")
         }
     }
 }
