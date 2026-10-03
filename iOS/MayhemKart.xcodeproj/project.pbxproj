@@ -46,7 +46,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		C100000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A100000000000001, A100000000000002, A100000000000003, A100000000000004, A100000000000005); runOnlyForDeploymentPostprocessing = 0;
+		C100000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A100000000000001, A100000000000002, A100000000000003, A100000000000004, A100000000000005); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
