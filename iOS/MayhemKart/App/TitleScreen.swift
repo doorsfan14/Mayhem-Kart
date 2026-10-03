@@ -6,13 +6,12 @@ struct TitleScreen: View {
 
     var body: some View {
         ZStack {
-            // The render surface is edge-to-edge, including the areas behind
-            // the notch / Dynamic Island and Home Indicator.
+            // The render surface is fully edge-to-edge.
             Color.black
                 .ignoresSafeArea()
 
-            // UI stays inside the system safe area so it never sits under
-            // the notch, Dynamic Island, or Home Indicator.
+            // The title UI extends to the Home Indicator area, while still
+            // respecting the top/side safe area around the notch / Dynamic Island.
             VStack(alignment: .leading, spacing: 8) {
                 Text("MAYHEM KART")
                 Button("Play") {}
@@ -23,6 +22,7 @@ struct TitleScreen: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(20)
+            .ignoresSafeArea(edges: .bottom)
 
             VStack {
                 Spacer()
@@ -40,6 +40,7 @@ struct TitleScreen: View {
                 }
             }
             .padding(8)
+            .ignoresSafeArea(edges: .bottom)
         }
         .preferredColorScheme(.dark)
         .onAppear {
