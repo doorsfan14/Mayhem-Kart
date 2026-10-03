@@ -19,6 +19,7 @@ struct TitleScreen: View {
                         .tracking(2)
 
                     MenuButton(title: "Play") {}
+                    MenuButton(title: "Play 1/2/3/4") {}
                     MenuButton(title: "Online Play") {}
                     MenuButton(title: "Settings") {}
                     
