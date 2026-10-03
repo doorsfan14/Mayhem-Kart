@@ -48,8 +48,8 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		G100000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = "MayhemKart/Info.plist"; IPHONEOS_DEPLOYMENT_TARGET = 15.4; PRODUCT_BUNDLE_IDENTIFIER = "net.teamceleste.mayhemkart"; PRODUCT_NAME = "Mayhem Kart"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; };
-		G100000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = "MayhemKart/Info.plist"; IPHONEOS_DEPLOYMENT_TARGET = 15.4; PRODUCT_BUNDLE_IDENTIFIER = "net.teamceleste.mayhemkart"; PRODUCT_NAME = "Mayhem Kart"; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; };
+		G100000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = "MayhemKart/Info.plist"; IPHONEOS_DEPLOYMENT_TARGET = 15.4; PRODUCT_BUNDLE_IDENTIFIER = "net.teamceleste.mayhemkart"; PRODUCT_NAME = "Mayhem Kart"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		G100000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = "MayhemKart/Info.plist"; IPHONEOS_DEPLOYMENT_TARGET = 15.4; PRODUCT_BUNDLE_IDENTIFIER = "net.teamceleste.mayhemkart"; PRODUCT_NAME = "Mayhem Kart"; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
 		G100000000000003 /* Project Debug */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; SWIFT_VERSION = 5.0; }; name = Debug; };
 		G100000000000004 /* Project Release */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; SWIFT_VERSION = 5.0; }; name = Release; };
 /* End XCBuildConfiguration section */
