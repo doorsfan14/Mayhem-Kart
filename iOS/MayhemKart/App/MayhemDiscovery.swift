@@ -1,9 +1,11 @@
 import Foundation
 import Network
+import UIKit
 
 final class MayhemDiscovery: NSObject {
     static let serviceType = "_mayhemkart._tcp"
     static let maxPlayers = 4
+
     private let listenerQueue = DispatchQueue(label: "net.teamceleste.mayhemkart.discovery.listener")
     private let browserQueue = DispatchQueue(label: "net.teamceleste.mayhemkart.discovery.browser")
     private var listener: NWListener?
@@ -18,9 +20,13 @@ final class MayhemDiscovery: NSObject {
 
     func start() {
         stop()
+
         do {
             let listener = try NWListener(using: .tcp)
-            listener.service = NWListener.Service(name: "Mayhem Kart iOS", type: Self.serviceType)
+            listener.service = NWListener.Service(
+                name: UIDevice.current.name,
+                type: Self.serviceType
+            )
             listener.stateUpdateHandler = { [weak self] state in
                 if case .failed = state { self?.listener?.cancel() }
             }
@@ -29,18 +35,25 @@ final class MayhemDiscovery: NSObject {
             }
             listener.start(queue: listenerQueue)
             self.listener = listener
-        } catch { return }
+        } catch {
+            return
+        }
 
-        let browser = NWBrowser(for: .bonjour(type: Self.serviceType, domain: nil), using: .tcp)
-        browser.browseResultsChangedHandler = { [weak self] results, changes in
+        let browser = NWBrowser(
+            for: .bonjour(type: Self.serviceType, domain: nil),
+            using: .tcp
+        )
+        browser.browseResultsChangedHandler = { [weak self] _, changes in
             for change in changes {
                 switch change {
-                case .added(let result): self?.onPeerFound?(result)
-                case .removed(let result): self?.onPeerLost?(result)
-                default: break
+                case .added(let result):
+                    self?.onPeerFound?(result)
+                case .removed(let result):
+                    self?.onPeerLost?(result)
+                default:
+                    break
                 }
             }
-            _ = results
         }
         browser.stateUpdateHandler = { _ in }
         browser.start(queue: browserQueue)
@@ -53,13 +66,19 @@ final class MayhemDiscovery: NSObject {
     }
 
     private func attach(_ session: MayhemSession, id: UUID) {
-        session.onPeerRequest = { [weak self] name, reply in self?.onPeerRequest?(name, reply) }
-        session.onConnected = { [weak self] in self?.onPeerConnected?() }
+        session.onPeerRequest = { [weak self] name, reply in
+            self?.onPeerRequest?(name, reply)
+        }
+        session.onConnected = { [weak self] in
+            self?.onPeerConnected?()
+        }
         session.onRejected = { [weak self] reason in
             self?.onPeerRejected?(reason)
             self?.sessions.removeValue(forKey: id)
         }
-        session.onDisconnected = { [weak self] _ in self?.sessions.removeValue(forKey: id) }
+        session.onDisconnected = { [weak self] _ in
+            self?.sessions.removeValue(forKey: id)
+        }
     }
 
     private func beginSession(with endpoint: NWEndpoint) {
@@ -72,7 +91,10 @@ final class MayhemDiscovery: NSObject {
     }
 
     private func beginSession(with connection: NWConnection) {
-        guard sessions.count < Self.maxPlayers - 1 else { connection.cancel(); return }
+        guard sessions.count < Self.maxPlayers - 1 else {
+            connection.cancel()
+            return
+        }
         let id = UUID()
         let session = MayhemSession()
         attach(session, id: id)
