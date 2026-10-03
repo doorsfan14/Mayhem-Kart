@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TitleScreen: View {
     private let version = "Version 26.0 Developer Build"
+    private let discovery = MayhemDiscovery()
 
     var body: some View {
         ZStack {
@@ -11,7 +12,6 @@ struct TitleScreen: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("MAYHEM KART")
                 Button("Play") {}
-                Button("Play 1/2/3/4") {}
                 Button("Online Play") {}
                 Button("Settings") {}
 
@@ -40,5 +40,17 @@ struct TitleScreen: View {
             .ignoresSafeArea()
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            discovery.onPeerFound = { _ in
+                print("Mayhem Kart peer found")
+            }
+            discovery.onPeerLost = { _ in
+                print("Mayhem Kart peer lost")
+            }
+            discovery.start()
+        }
+        .onDisappear {
+            discovery.stop()
+        }
     }
 }
