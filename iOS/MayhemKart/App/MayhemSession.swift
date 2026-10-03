@@ -145,7 +145,7 @@ final class MayhemSession {
 
     private func processPackets() {
         while receiveBuffer.count >= 4 {
-            let length = receiveBuffer.prefix(4).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+            let length = (UInt32(receiveBuffer[0]) << 24) | (UInt32(receiveBuffer[1]) << 16) | (UInt32(receiveBuffer[2]) << 8) | UInt32(receiveBuffer[3])
             guard length > 0, length <= UInt32(MayhemPacket.maxPayloadSize) else {
                 onRejected?("Invalid Mayhem Kart packet size.")
                 disconnect()
