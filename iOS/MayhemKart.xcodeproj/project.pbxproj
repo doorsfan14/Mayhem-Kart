@@ -8,6 +8,7 @@
 		A100000000000001 /* MayhemKartApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000001 /* MayhemKartApp.swift */; };
 		A100000000000002 /* TitleScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000002 /* TitleScreen.swift */; };
 		A100000000000003 /* MayhemEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000003 /* MayhemEngine.swift */; };
+		A100000000000004 /* MayhemDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000006 /* MayhemDiscovery.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -16,6 +17,7 @@
 		B100000000000003 /* MayhemEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemEngine.swift; sourceTree = "<group>"; };
 		B100000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "MayhemKart/Info.plist"; sourceTree = "<group>"; };
 		B100000000000005 /* MayhemKart.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mayhem Kart.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B100000000000006 /* MayhemDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemDiscovery.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -24,7 +26,7 @@
 
 /* Begin PBXGroup section */
 		D100000000000001 = {isa = PBXGroup; children = (D100000000000002, D100000000000003, B100000000000004); sourceTree = "<group>"; };
-		D100000000000002 /* App */ = {isa = PBXGroup; children = (B100000000000001, B100000000000002); path = "MayhemKart/App"; sourceTree = "<group>"; };
+		D100000000000002 /* App */ = {isa = PBXGroup; children = (B100000000000001, B100000000000002, B100000000000006); path = "MayhemKart/App"; sourceTree = "<group>"; };
 		D100000000000003 /* Engine */ = {isa = PBXGroup; children = (B100000000000003); path = "../Engine/Core"; sourceTree = "<group>"; };
 		E100000000000001 /* Products */ = {isa = PBXGroup; children = (B100000000000005); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
@@ -42,12 +44,12 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		C100000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A100000000000001, A100000000000002, A100000000000003); runOnlyForDeploymentPostprocessing = 0; };
+		C100000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A100000000000001, A100000000000002, A100000000000003, A100000000000004); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		G100000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = "MayhemKart/Info.plist"; IPHONEOS_DEPLOYMENT_TARGET = 15.4; PRODUCT_BUNDLE_IDENTIFIER = "net.teamceleste.mayhemkart"; PRODUCT_NAME = "Mayhem Kart"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
-		G100000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = "MayhemKart/Info.plist"; IPHONEOS_DEPLOYMENT_TARGET = 15.4; PRODUCT_BUNDLE_IDENTIFIER = "net.teamceleste.mayhemkart"; PRODUCT_NAME = "Mayhem Kart"; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+		G100000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = "MayhemKart/Info.plist"; IPHONEOS_DEPLOYMENT_TARGET = 15.4; PRODUCT_BUNDLE_IDENTIFIER = "net.teamceleste.mayhemkart"; PRODUCT_NAME = "Mayhem Kart"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; };
+		G100000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = "MayhemKart/Info.plist"; IPHONEOS_DEPLOYMENT_TARGET = 15.4; PRODUCT_BUNDLE_IDENTIFIER = "net.teamceleste.mayhemkart"; PRODUCT_NAME = "Mayhem Kart"; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; };
 		G100000000000003 /* Project Debug */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; SWIFT_VERSION = 5.0; }; name = Debug; };
 		G100000000000004 /* Project Release */ = {isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; SWIFT_VERSION = 5.0; }; name = Release; };
 /* End XCBuildConfiguration section */
