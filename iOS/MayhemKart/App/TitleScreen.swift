@@ -6,13 +6,13 @@ struct TitleScreen: View {
 
     var body: some View {
         ZStack {
-            // The title scene renders edge-to-edge vertically downward,
-            // but does not extend into the top notch / Dynamic Island area.
+            // Title-screen background: edge-to-edge at the bottom, but kept
+            // below the top safe area around the notch / Dynamic Island.
             Color.black
                 .ignoresSafeArea(edges: .bottom)
 
-            // UI is allowed to use the complete screen, including the
-            // notch / Dynamic Island and Home Indicator regions.
+            // Title-screen UI follows the same rule: it can extend into the
+            // Home Indicator area, but remains below the notch / Dynamic Island.
             VStack(alignment: .leading, spacing: 8) {
                 Text("MAYHEM KART")
                 Button("Play") {}
@@ -23,7 +23,7 @@ struct TitleScreen: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(20)
-            .ignoresSafeArea()
+            .ignoresSafeArea(edges: .bottom)
 
             VStack {
                 Spacer()
@@ -41,7 +41,7 @@ struct TitleScreen: View {
                 }
             }
             .padding(8)
-            .ignoresSafeArea()
+            .ignoresSafeArea(edges: .bottom)
         }
         .preferredColorScheme(.dark)
         .onAppear {
