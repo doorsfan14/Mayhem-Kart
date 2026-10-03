@@ -15,6 +15,8 @@ class MainActivity : Activity() {
     private lateinit var discovery: MayhemDiscovery
     private lateinit var peersContainer: LinearLayout
     private lateinit var statusText: TextView
+    private lateinit var nearby: TextView
+    private lateinit var peersContainer: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,30 +52,55 @@ class MainActivity : Activity() {
         }
         root.addView(title)
 
-        listOf("Play", "Online Play", "Settings").forEach { label ->
-            val button = TextView(this).apply {
-                text = label
-                textSize = 20f
-                setTextColor(Color.WHITE)
-                isClickable = true
-                isFocusable = true
-            }
-            root.addView(button, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ))
+        val playButton = TextView(this).apply {
+            text = "Play"
+            textSize = 20f
+            setTextColor(Color.WHITE)
         }
+        root.addView(playButton, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
 
-        val nearby = TextView(this).apply {
+        val onlineButton = TextView(this).apply {
+            text = "Online Play"
+            textSize = 20f
+            setTextColor(Color.WHITE)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                nearby.visibility = View.VISIBLE
+                peersContainer.visibility = View.VISIBLE
+                statusText.text = "Searching..."
+                discovery.start()
+            }
+        }
+        root.addView(onlineButton, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        val settingsButton = TextView(this).apply {
+            text = "Settings"
+            textSize = 20f
+            setTextColor(Color.WHITE)
+        }
+        root.addView(settingsButton, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        nearby = TextView(this).apply {
             text = "Nearby Players"
             textSize = 18f
             setTextColor(Color.WHITE)
-            visibility = View.VISIBLE
+            visibility = View.GONE
         }
         root.addView(nearby)
 
         peersContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
         }
         root.addView(peersContainer)
 
@@ -91,7 +118,6 @@ class MainActivity : Activity() {
         root.addView(footer)
 
         setContentView(root)
-        discovery.start()
     }
 
     private fun addPeer(peer: NsdServiceInfo) {
