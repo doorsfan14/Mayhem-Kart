@@ -6,13 +6,6 @@ import android.net.nsd.NsdServiceInfo
 import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * Local-network discovery for Mayhem Kart.
- *
- * iOS uses Bonjour with the same service type, "_mayhemkart._tcp",
- * allowing iOS and Android builds to discover one another without
- * a centralized service.
- */
 class MayhemDiscovery(context: Context) {
     companion object {
         const val SERVICE_TYPE = "_mayhemkart._tcp"
@@ -23,15 +16,30 @@ class MayhemDiscovery(context: Context) {
     private var registration: NsdManager.RegistrationListener? = null
     private var discovery: NsdManager.DiscoveryListener? = null
     private var serverSocket: ServerSocket? = null
+    private var session: MayhemSession? = null
     private val running = AtomicBoolean(false)
 
     var onPeerFound: ((NsdServiceInfo) -> Unit)? = null
     var onPeerLost: ((String) -> Unit)? = null
+    var onPeerConnected: (() -> Unit)? = null
+    var onPeerRejected: ((String) -> Unit)? = null
 
     fun start() {
         if (!running.compareAndSet(false, true)) return
 
         serverSocket = ServerSocket(0)
+
+        Thread {
+            while (running.get()) {
+                try {
+                    val accepted = serverSocket?.accept() ?: break
+                    beginSession(accepted)
+                } catch (_: Exception) {
+                    if (running.get()) continue
+                    break
+                }
+            }
+        }.start()
 
         val serviceInfo = NsdServiceInfo().apply {
             serviceName = "$SERVICE_NAME_PREFIX Android"
@@ -56,6 +64,9 @@ class MayhemDiscovery(context: Context) {
                 nsd.resolveService(info, object : NsdManager.ResolveListener {
                     override fun onServiceResolved(resolved: NsdServiceInfo) {
                         onPeerFound?.invoke(resolved)
+                        if (session == null) {
+                            beginSession(resolved.host.hostAddress, resolved.port)
+                        }
                     }
 
                     override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) = Unit
@@ -77,15 +88,53 @@ class MayhemDiscovery(context: Context) {
         nsd.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discovery)
     }
 
+    private fun beginSession(host: String, port: Int) {
+        if (session != null) return
+
+        val next = MayhemSession()
+        next.onConnected = { onPeerConnected?.invoke() }
+        next.onRejected = {
+            onPeerRejected?.invoke(it)
+            next.disconnect()
+            session = null
+        }
+        next.onDisconnected = {
+            session = null
+        }
+
+        session = next
+        next.connect(host, port)
+    }
+
+    private fun beginSession(socket: java.net.Socket) {
+        if (session != null) {
+            runCatching { socket.close() }
+            return
+        }
+
+        val next = MayhemSession()
+        next.onConnected = { onPeerConnected?.invoke() }
+        next.onRejected = {
+            onPeerRejected?.invoke(it)
+            next.disconnect()
+            session = null
+        }
+        next.onDisconnected = {
+            session = null
+        }
+
+        session = next
+        next.accept(socket)
+    }
+
     fun stop() {
         if (!running.compareAndSet(true, false)) return
 
-        registration?.let {
-            runCatching { nsd.unregisterService(it) }
-        }
-        discovery?.let {
-            runCatching { nsd.stopServiceDiscovery(it) }
-        }
+        session?.disconnect()
+        session = null
+
+        registration?.let { runCatching { nsd.unregisterService(it) } }
+        discovery?.let { runCatching { nsd.stopServiceDiscovery(it) } }
 
         registration = null
         discovery = null
