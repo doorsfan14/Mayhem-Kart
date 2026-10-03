@@ -16,7 +16,6 @@ class MainActivity : Activity() {
     private lateinit var peersContainer: LinearLayout
     private lateinit var statusText: TextView
     private lateinit var nearby: TextView
-    private lateinit var peersContainer: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
