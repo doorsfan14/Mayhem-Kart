@@ -29,7 +29,7 @@ class MainActivity : Activity() {
         }
         root.addView(title, LinearLayout.LayoutParams(320, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        listOf("Play", "Online Play", "Settings").forEach { label ->
+        listOf("Play", "Play 1/2/3/4", "Online Play", "Settings").forEach { label ->
             val button = TextView(this).apply {
                 text = label
                 textSize = 20f
