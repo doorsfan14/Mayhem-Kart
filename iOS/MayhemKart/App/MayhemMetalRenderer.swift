@@ -185,6 +185,10 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float height = clamp(ray.y * 0.5 + 0.5, 0.0, 1.0);
             float3 skyColor = mix(horizon, zenith, height);
 
+            // Keep the actual atmospheric horizon visible where the sky meets the track.
+            float horizonBand = 1.0 - smoothstep(0.0, 0.12, abs(ray.y));
+            skyColor = mix(skyColor, horizon, horizonBand * 0.55);
+
             float sunset = pow(max(1.0 - abs(sun.y), 0.0), 2.0);
             skyColor += float3(0.95, 0.34, 0.10) * sunset * pow(sunAmount, 6.0) * 0.75;
             skyColor += float3(1.0, 0.86, 0.60) * pow(sunAmount, 80.0) * 0.9;
@@ -312,15 +316,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         encoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
         let light = sun
-
-        // Wide terrain creates a real distant horizon beyond the track.
-        Self.drawCube(
-            encoder: encoder,
-            model: simd_mul(Self.translation(0, -0.41, 0), Self.scale(140.0, 0.05, 140.0)),
-            color: SIMD3<Float>(0.18, 0.25, 0.18),
-            projection: projection, viewMatrix: viewMatrix, lightDirection: light,
-            timeOfDay: timeOfDay
-        )
 
         Self.drawCube(
             encoder: encoder,
