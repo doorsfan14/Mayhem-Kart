@@ -18,7 +18,9 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
     private let device: MTLDevice
     private let commandQueue: MTLCommandQueue
     private let skyPipeline: MTLRenderPipelineState
+    private let postPipeline: MTLRenderPipelineState
     private let noDepthState: MTLDepthStencilState
+    private var hdrTexture: MTLTexture?
 
     private var viewportSize = SIMD2<Float>(1, 1)
     private var elapsedTime: Float = 0
@@ -118,6 +120,29 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 float2(-1, -1), float2(3, -1), float2(-1, 3)
             };
             return float4(positions[vertexID], 0, 1);
+        }
+
+        fragment float4 post_fragment(
+            float4 position [[position]],
+            texture2d<float> source [[texture(0)]],
+            constant PostUniforms &u [[buffer(0)]]) {
+            constexpr sampler s(address::clamp_to_edge, filter::linear);
+            float2 uv = position.xy / float2(source.get_width(), source.get_height());
+            float3 base = source.sample(s, uv).rgb;
+            float3 bloom = float3(0.0);
+            const float w[5] = {0.227027,0.194594,0.121621,0.054054,0.016216};
+            for (int i=0;i<5;++i) {
+                float2 dx=float2(u.texel.x*float(i),0);
+                float2 dy=float2(0,u.texel.y*float(i));
+                bloom += max(source.sample(s,uv+dx).rgb-1.0,0.0)*w[i];
+                bloom += max(source.sample(s,uv-dx).rgb-1.0,0.0)*w[i];
+                bloom += max(source.sample(s,uv+dy).rgb-1.0,0.0)*w[i];
+                bloom += max(source.sample(s,uv-dy).rgb-1.0,0.0)*w[i];
+            }
+            float3 hdr = base + bloom * u.intensity;
+            hdr = hdr / (1.0 + hdr);
+            hdr = pow(max(hdr,0.0), float3(1.0/2.2));
+            return float4(hdr,1.0);
         }
 
         fragment float4 sky_fragment(
@@ -237,10 +262,18 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         let skyDescriptor = MTLRenderPipelineDescriptor()
         skyDescriptor.vertexFunction = skyVertex
         skyDescriptor.fragmentFunction = skyFragment
-        skyDescriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
+        skyDescriptor.colorAttachments[0].pixelFormat = .rgba16Float
 
         guard let skyPipeline = try? device.makeRenderPipelineState(descriptor: skyDescriptor) else { return nil }
         self.skyPipeline = skyPipeline
+
+        let postDescriptor = MTLRenderPipelineDescriptor()
+        postDescriptor.vertexFunction = library.makeFunction(name: "post_vertex")
+        postDescriptor.fragmentFunction = library.makeFunction(name: "post_fragment")
+        postDescriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
+        guard let postPipeline = try? device.makeRenderPipelineState(descriptor: postDescriptor) else { return nil }
+        self.postPipeline = postPipeline
+        self.hdrTexture = nil
 
         let noDepthDescriptor = MTLDepthStencilDescriptor()
         noDepthDescriptor.depthCompareFunction = .always
@@ -261,7 +294,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         view.device = device
         view.delegate = self
         view.colorPixelFormat = .bgra8Unorm
-        view.framebufferOnly = true
+        view.framebufferOnly = false
         view.autoResizeDrawable = true
         view.contentScaleFactor = UIScreen.main.scale
         view.preferredFramesPerSecond = 60
@@ -276,8 +309,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
     func draw(in view: MTKView) {
         guard let drawable = view.currentDrawable,
               let descriptor = view.currentRenderPassDescriptor,
-              let commandBuffer = commandQueue.makeCommandBuffer(),
-              let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+              let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
         let now = CACurrentMediaTime()
         let deltaTime = Float(min(max(now - lastTimestamp, 0.0), 0.05))
@@ -339,12 +371,33 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             time: elapsedTime
         )
 
-        encoder.setRenderPipelineState(skyPipeline)
-        encoder.setDepthStencilState(noDepthState)
-        encoder.setFragmentBytes(&skyUniforms, length: MemoryLayout<SkyUniforms>.stride, index: 0)
-        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        if hdrTexture == nil || hdrTexture?.width != Int(viewportSize.x) || hdrTexture?.height != Int(viewportSize.y) {
+            let td = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: max(Int(viewportSize.x),1), height: max(Int(viewportSize.y),1), mipmapped: false)
+            td.usage = [.renderTarget, .shaderRead]
+            hdrTexture = device.makeTexture(descriptor: td)
+        }
+        guard let hdrTexture else { return }
 
-        encoder.endEncoding()
+        let hdrPass = MTLRenderPassDescriptor()
+        hdrPass.colorAttachments[0].texture = hdrTexture
+        hdrPass.colorAttachments[0].loadAction = .clear
+        hdrPass.colorAttachments[0].storeAction = .store
+        hdrPass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+        guard let skyEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: hdrPass) else { return }
+        skyEncoder.setRenderPipelineState(skyPipeline)
+        skyEncoder.setDepthStencilState(noDepthState)
+        skyEncoder.setFragmentBytes(&skyUniforms, length: MemoryLayout<SkyUniforms>.stride, index: 0)
+        skyEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        skyEncoder.endEncoding()
+
+        var postUniforms = PostUniformsCPU(sunUV: SIMD2(sunScreen.x, sunScreen.y), texel: SIMD2(1.0 / viewportSize.x, 1.0 / viewportSize.y), intensity: 1.6)
+        guard let postEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+        postEncoder.setRenderPipelineState(postPipeline)
+        postEncoder.setFragmentTexture(hdrTexture, index: 0)
+        postEncoder.setFragmentBytes(&postUniforms, length: MemoryLayout<PostUniformsCPU>.stride, index: 0)
+        postEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        postEncoder.endEncoding()
+
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
