@@ -47,6 +47,13 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         #include <metal_stdlib>
         using namespace metal;
 
+        struct SkyUniforms {
+            float4x4 inverseViewProjection;
+            float4 cameraPosition;
+            float4 sunDirection;
+            float4 sky;
+        };
+
         float hash3(float3 p) {
             p = fract(p * 0.3183099 + float3(0.1, 0.2, 0.3));
             p *= 17.0;
