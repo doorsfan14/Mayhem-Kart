@@ -10,6 +10,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         var cameraPosition: SIMD4<Float>
         var sunDirection: SIMD4<Float>
         var sky: SIMD4<Float>
+        var effects: SIMD4<Float>
     }
 
     private let device: MTLDevice
@@ -27,6 +28,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
     /// Modders can set this directly per track, e.g. 7.5 for 07:30.
     var timeOfDay = MayhemTimeOfDay(hour: 12)
 
+    /// Camera state. Drag orbits; pinch changes field of view.
     var camera = MayhemCamera(
         position: SIMD3(0, 3.2, 8.5),
         target: SIMD3(0, 0.35, 0),
@@ -35,6 +37,12 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         nearPlane: 0.05,
         farPlane: 250
     )
+
+    /// Lightweight screen-space effects designed to stay cheap on mobile GPUs.
+    var effectsEnabled = true
+    var vignetteStrength: Float = 0.22
+    var filmGrainStrength: Float = 0.012
+    var exposure: Float = 1.0
 
     init?(view: MTKView) {
         guard let device = MTLCreateSystemDefaultDevice(),
@@ -52,6 +60,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float4 cameraPosition;
             float4 sunDirection;
             float4 sky;
+            float4 effects;
         };
 
         float hash3(float3 p) {
@@ -149,15 +158,12 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 }
             }
 
+            float daylight = uniforms.sky.x;
             float3 cloudColor = mix(float3(0.12, 0.14, 0.17), float3(1.0, 0.98, 0.92), daylight);
             skyColor = mix(skyColor, cloudColor, clamp(cloudAccum, 0.0, 0.92));
 
-            // Sun disk + restrained atmospheric glare. The disk stays sharp when unobstructed;
-            // clouds naturally soften it because cloud accumulation is applied first.
             float sunAlignment = max(dot(ray, sun), 0.0);
             float sunVisibility = 1.0 - clamp(cloudAccum * 2.0, 0.0, 1.0);
-
-            // Give the sun a visible angular radius instead of a nearly single-pixel dot.
             float sunAngle = acos(clamp(dot(ray, sun), -1.0, 1.0));
             float sunDisk = 1.0 - smoothstep(0.0040, 0.0068, sunAngle);
             float corona = pow(sunAlignment, 96.0) * 0.85 * daylight;
@@ -167,7 +173,24 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float3 sunColor = float3(1.0, 0.93, 0.78);
             skyColor += sunColor * sunDisk * sunVisibility * 1.8;
             skyColor += sunColor * (corona + halo + broadGlow) * sunVisibility;
-            skyColor *= uniforms.sky.y;
+
+            // Cheap camera/screen effects. These are applied after sky/cloud lighting
+            // so they affect the complete visible image without another full-resolution pass.
+            if (uniforms.effects.x > 0.5) {
+                float2 centered = uv - 0.5;
+                float radial = dot(centered, centered) * 2.0;
+                float vignette = 1.0 - smoothstep(0.28, 0.72, radial) * uniforms.effects.y;
+                skyColor *= vignette;
+
+                float grainSeed = dot(float3(position.xy, uniforms.effects.w),
+                                      float3(12.9898, 78.233, 37.719));
+                float grain = fract(sin(grainSeed) * 43758.5453) - 0.5;
+                skyColor += grain * uniforms.effects.z;
+
+                // Mild exposure roll-off keeps bright sky/sun detail from hard clipping.
+                float exposureValue = max(uniforms.effects.w, 0.01);
+                skyColor = 1.0 - exp(-skyColor * exposureValue);
+            }
 
             return float4(clamp(skyColor, 0.0, 1.0), 1.0);
         }
@@ -256,7 +279,13 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             inverseViewProjection: inverseViewProjection,
             cameraPosition: SIMD4(camera.position, 1),
             sunDirection: SIMD4(sun, 0),
-            sky: SIMD4(daylight, timeOfDay.skyBrightness, viewportSize.x, viewportSize.y)
+            sky: SIMD4(daylight, timeOfDay.skyBrightness, viewportSize.x, viewportSize.y),
+            effects: SIMD4(
+                effectsEnabled ? 1 : 0,
+                vignetteStrength,
+                filmGrainStrength,
+                exposure
+            )
         )
 
         encoder.setRenderPipelineState(skyPipeline)
@@ -268,7 +297,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
-
 
     func orbitCamera(deltaX: Float, deltaY: Float) {
         let offset = camera.position - camera.target
@@ -283,6 +311,12 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             sin(pitch) * radius,
             cos(yaw) * cos(pitch) * radius
         )
+    }
+
+    func zoomCamera(scale: Float) {
+        let clampedScale = min(max(scale, 0.65), 1.55)
+        let newFOV = camera.fieldOfView / clampedScale
+        camera.fieldOfView = min(max(newFOV, 35), 85)
     }
 
     private static func perspective(fovY: Float, aspect: Float, near: Float, far: Float) -> simd_float4x4 {
@@ -306,17 +340,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             SIMD4(x.y, y.y, z.y, 0),
             SIMD4(x.z, y.z, z.z, 0),
             SIMD4(-simd_dot(x, eye), -simd_dot(y, eye), -simd_dot(z, eye), 1)
-        ))
-    }
-
-    private static func rotationY(_ angle: Float) -> simd_float4x4 {
-        let c = cos(angle)
-        let s = sin(angle)
-        return simd_float4x4(columns: (
-            SIMD4(c, 0, -s, 0),
-            SIMD4(0, 1, 0, 0),
-            SIMD4(s, 0, c, 0),
-            SIMD4(0, 0, 0, 1)
         ))
     }
 }
