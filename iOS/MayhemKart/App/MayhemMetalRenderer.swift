@@ -47,104 +47,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         #include <metal_stdlib>
         using namespace metal;
 
-        struct Vertex {
-            float3 position;
-            float3 normal;
-        };
-
-        struct FrameUniforms {
-            float4x4 modelViewProjection;
-            float4x4 model;
-            float4 lightDirection;
-            float4 baseColor;
-            float4 timeOfDay;
-        };
-
-        struct SkyUniforms {
-            float4x4 inverseViewProjection;
-            float4 cameraPosition;
-            float4 sunDirection;
-            float4 sky;
-        };
-
-        struct SceneOut {
-            float4 position [[position]];
-            float3 normal;
-            float3 worldPosition;
-        };
-
-        float hash21(float2 p) {
-            p = fract(p * float2(123.34, 456.21));
-            p += dot(p, p + 45.32);
-            return fract(p.x * p.y);
-        }
-
-        float noise3(float3 p) {
-            float3 i = floor(p);
-            float3 f = fract(p);
-            f = f * f * (3.0 - 2.0 * f);
-            float n000 = hash21(i.xy + i.z * 17.0);
-            float n100 = hash21(i.xy + float2(1, 0) + i.z * 17.0);
-            float n010 = hash21(i.xy + float2(0, 1) + i.z * 17.0);
-            float n110 = hash21(i.xy + float2(1, 1) + i.z * 17.0);
-            float n001 = hash21(i.xy + (i.z + 1.0) * 17.0);
-            float n101 = hash21(i.xy + float2(1, 0) + (i.z + 1.0) * 17.0);
-            float n011 = hash21(i.xy + float2(0, 1) + (i.z + 1.0) * 17.0);
-            float n111 = hash21(i.xy + float2(1, 1) + (i.z + 1.0) * 17.0);
-            float x00 = mix(n000, n100, f.x);
-            float x10 = mix(n010, n110, f.x);
-            float x01 = mix(n001, n101, f.x);
-            float x11 = mix(n011, n111, f.x);
-            return mix(mix(x00, x10, f.y), mix(x01, x11, f.y), f.z);
-        }
-
-        float cloudDensity(float3 p) {
-            float3 q = p * float3(0.032, 0.045, 0.032);
-            float n = noise3(q) * 0.58;
-            n += noise3(q * 2.15 + float3(4.1, 1.7, 8.3)) * 0.27;
-            n += noise3(q * 4.5 + float3(2.2, 7.4, 3.6)) * 0.15;
-
-            float height = smoothstep(22.0, 27.0, p.y) * (1.0 - smoothstep(39.0, 45.0, p.y));
-            float billow = smoothstep(0.44, 0.68, n);
-            return billow * height;
-        }
-
-        float cloudShadow(float3 worldPosition, float3 sunDirection) {
-            float3 p = worldPosition + float3(0, 34, 0);
-            float shadow = 0.0;
-            for (int i = 0; i < 8; ++i) {
-                p += sunDirection * 7.0;
-                shadow += cloudDensity(p);
-            }
-            return clamp(shadow / 8.0, 0.0, 1.0);
-        }
-
-        vertex SceneOut mayhem_vertex(
-            const device Vertex *vertices [[buffer(0)]],
-            constant FrameUniforms &uniforms [[buffer(1)]],
-            uint vertexID [[vertex_id]]
-        ) {
-            SceneOut out;
-            float4 world = uniforms.model * float4(vertices[vertexID].position, 1.0);
-            out.position = uniforms.modelViewProjection * float4(vertices[vertexID].position, 1.0);
-            out.normal = normalize((uniforms.model * float4(vertices[vertexID].normal, 0.0)).xyz);
-            out.worldPosition = world.xyz;
-            return out;
-        }
-
-        fragment float4 mayhem_fragment(
-            SceneOut in [[stage_in]],
-            constant FrameUniforms &uniforms [[buffer(1)]]
-        ) {
-            float3 light = normalize(uniforms.lightDirection.xyz);
-            float diffuse = max(dot(normalize(in.normal), light), 0.0);
-            float shadow = cloudShadow(in.worldPosition, light);
-            float cloudShade = 1.0 - shadow * uniforms.timeOfDay.z;
-            float lighting = 0.42 + diffuse * 0.58;
-            lighting *= cloudShade;
-            return float4(uniforms.baseColor.rgb * lighting, 1.0);
-        }
-
         vertex float4 sky_vertex(uint vertexID [[vertex_id]]) {
             const float2 positions[3] = {
                 float2(-1, -1), float2(3, -1), float2(-1, 3)
@@ -218,44 +120,20 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
               let skyVertex = library.makeFunction(name: "sky_vertex"),
               let skyFragment = library.makeFunction(name: "sky_fragment") else { return nil }
 
-        let sceneDescriptor = MTLRenderPipelineDescriptor()
-        sceneDescriptor.vertexFunction = vertexFunction
-        sceneDescriptor.fragmentFunction = fragmentFunction
-        sceneDescriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
-        sceneDescriptor.depthAttachmentPixelFormat = .depth32Float
-
         let skyDescriptor = MTLRenderPipelineDescriptor()
         skyDescriptor.vertexFunction = skyVertex
         skyDescriptor.fragmentFunction = skyFragment
         skyDescriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
 
-        guard let scenePipeline = try? device.makeRenderPipelineState(descriptor: sceneDescriptor),
-              let skyPipeline = try? device.makeRenderPipelineState(descriptor: skyDescriptor) else { return nil }
-
-        self.scenePipeline = scenePipeline
+        guard let skyPipeline = try? device.makeRenderPipelineState(descriptor: skyDescriptor) else { return nil }
         self.skyPipeline = skyPipeline
-
-        let depthDescriptor = MTLDepthStencilDescriptor()
-        depthDescriptor.depthCompareFunction = .less
-        depthDescriptor.isDepthWriteEnabled = true
 
         let noDepthDescriptor = MTLDepthStencilDescriptor()
         noDepthDescriptor.depthCompareFunction = .always
         noDepthDescriptor.isDepthWriteEnabled = false
 
-        guard let depthState = device.makeDepthStencilState(descriptor: depthDescriptor),
-              let noDepthState = device.makeDepthStencilState(descriptor: noDepthDescriptor) else { return nil }
-
-        self.depthState = depthState
+        guard let noDepthState = device.makeDepthStencilState(descriptor: noDepthDescriptor) else { return nil }
         self.noDepthState = noDepthState
-
-        let vertices = Self.makeCubeVertices()
-        guard let vertexBuffer = device.makeBuffer(
-            bytes: vertices,
-            length: vertices.count * MemoryLayout<Vertex>.stride,
-            options: .storageModeShared
-        ) else { return nil }
-        self.vertexBuffer = vertexBuffer
 
         super.init()
 
@@ -342,42 +220,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             cos(yaw) * cos(pitch) * radius
         )
     }
-
-    private static func drawCube(
-        encoder: MTLRenderCommandEncoder,
-        model: simd_float4x4,
-        color: SIMD3<Float>,
-        projection: simd_float4x4,
-        viewMatrix: simd_float4x4,
-        lightDirection: SIMD3<Float>,
-        timeOfDay: MayhemTimeOfDay
-    ) {
-        var uniforms = FrameUniforms(
-            modelViewProjection: simd_mul(projection, simd_mul(viewMatrix, model)),
-            model: model,
-            lightDirection: SIMD4(lightDirection, 0),
-            baseColor: SIMD4(color, 1),
-            timeOfDay: SIMD4(timeOfDay.hour, timeOfDay.daylight, timeOfDay.cloudShadowStrength, 0)
-        )
-        encoder.setVertexBytes(&uniforms, length: MemoryLayout<FrameUniforms>.stride, index: 1)
-        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 36)
-    }
-
-    private static func translation(_ x: Float, _ y: Float, _ z: Float) -> simd_float4x4 {
-        var matrix = matrix_identity_float4x4
-        matrix.columns.3 = SIMD4(x, y, z, 1)
-        return matrix
-    }
-
-    private static func scale(_ x: Float, _ y: Float, _ z: Float) -> simd_float4x4 {
-        simd_float4x4(columns: (
-            SIMD4(x, 0, 0, 0),
-            SIMD4(0, y, 0, 0),
-            SIMD4(0, 0, z, 0),
-            SIMD4(0, 0, 0, 1)
-        ))
-    }
-
 
     private static func perspective(fovY: Float, aspect: Float, near: Float, far: Float) -> simd_float4x4 {
         let y = 1 / tan(fovY * 0.5)
