@@ -5,19 +5,6 @@ import QuartzCore
 import UIKit
 
 final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
-    private struct Vertex {
-        var position: SIMD3<Float>
-        var normal: SIMD3<Float>
-    }
-
-    private struct FrameUniforms {
-        var modelViewProjection: simd_float4x4
-        var model: simd_float4x4
-        var lightDirection: SIMD4<Float>
-        var baseColor: SIMD4<Float>
-        var timeOfDay: SIMD4<Float>
-    }
-
     private struct SkyUniforms {
         var inverseViewProjection: simd_float4x4
         var cameraPosition: SIMD4<Float>
@@ -27,11 +14,8 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
 
     private let device: MTLDevice
     private let commandQueue: MTLCommandQueue
-    private let scenePipeline: MTLRenderPipelineState
     private let skyPipeline: MTLRenderPipelineState
-    private let depthState: MTLDepthStencilState
     private let noDepthState: MTLDepthStencilState
-    private let vertexBuffer: MTLBuffer
 
     private var viewportSize = SIMD2<Float>(1, 1)
     private var elapsedTime: Float = 0
@@ -268,8 +252,10 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
 
         view.device = device
         view.delegate = self
-        view.depthStencilPixelFormat = .depth32Float
+        view.colorPixelFormat = .bgra8Unorm
         view.framebufferOnly = true
+        view.autoResizeDrawable = true
+        view.contentScaleFactor = UIScreen.main.scale
         view.preferredFramesPerSecond = 60
         view.enableSetNeedsDisplay = false
         view.isPaused = false
@@ -326,10 +312,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         encoder.setDepthStencilState(noDepthState)
         encoder.setFragmentBytes(&skyUniforms, length: MemoryLayout<SkyUniforms>.stride, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-
-        encoder.setRenderPipelineState(scenePipeline)
-        encoder.setDepthStencilState(depthState)
-        encoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
         encoder.endEncoding()
         commandBuffer.present(drawable)
