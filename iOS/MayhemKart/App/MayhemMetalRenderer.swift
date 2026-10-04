@@ -378,34 +378,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         ))
     }
 
-    private static func makeCubeVertices() -> [Vertex] {
-        let p: [SIMD3<Float>] = [
-            SIMD3(-1,-1, 1), SIMD3( 1,-1, 1), SIMD3( 1, 1, 1), SIMD3(-1, 1, 1),
-            SIMD3( 1,-1,-1), SIMD3(-1,-1,-1), SIMD3(-1, 1,-1), SIMD3( 1, 1,-1),
-            SIMD3(-1, 1, 1), SIMD3( 1, 1, 1), SIMD3( 1, 1,-1), SIMD3(-1, 1,-1),
-            SIMD3(-1,-1,-1), SIMD3( 1,-1,-1), SIMD3( 1,-1, 1), SIMD3(-1,-1, 1),
-            SIMD3( 1,-1, 1), SIMD3( 1,-1,-1), SIMD3( 1, 1,-1), SIMD3( 1, 1, 1),
-            SIMD3(-1,-1,-1), SIMD3(-1,-1, 1), SIMD3(-1, 1, 1), SIMD3(-1, 1,-1)
-        ]
-        let n: [SIMD3<Float>] = [
-            SIMD3(0,0,1), SIMD3(0,0,-1), SIMD3(0,1,0),
-            SIMD3(0,-1,0), SIMD3(1,0,0), SIMD3(-1,0,0)
-        ]
-
-        var vertices: [Vertex] = []
-        for face in 0..<6 {
-            let base = face * 4
-            vertices.append(contentsOf: [
-                Vertex(position: p[base], normal: n[face]),
-                Vertex(position: p[base + 1], normal: n[face]),
-                Vertex(position: p[base + 2], normal: n[face]),
-                Vertex(position: p[base], normal: n[face]),
-                Vertex(position: p[base + 2], normal: n[face]),
-                Vertex(position: p[base + 3], normal: n[face])
-            ])
-        }
-        return vertices
-    }
 
     private static func perspective(fovY: Float, aspect: Float, near: Float, far: Float) -> simd_float4x4 {
         let y = 1 / tan(fovY * 0.5)
