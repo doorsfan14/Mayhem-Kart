@@ -12,6 +12,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         var sky: SIMD4<Float>
         var effects: SIMD4<Float>
         var sunScreen: SIMD4<Float>
+        var time: Float
     }
 
     private let device: MTLDevice
@@ -63,6 +64,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float4 sky;
             float4 effects;
             float4 sunScreen;
+            float time;
         };
 
         float hash3(float3 p) {
@@ -92,21 +94,23 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             return mix(mix(nx00, nx10, f.y), mix(nx01, nx11, f.y), f.z);
         }
 
-        float cloudDensity(float3 p) {
-            // Layered 3D density: large billows + smaller erosion detail.
-            float3 q = p * float3(0.022, 0.030, 0.022);
+        float cloudDensity(float3 p, float time) {
+            float3 wind = float3(time * 0.7, time * 0.10, -time * 0.35);
+            float3 q = (p + wind) * float3(0.021, 0.030, 0.021);
+
             float base = noise3(q);
-            float billows = noise3(q * 1.8 + float3(4.7, 1.9, 8.2));
-            float detail = noise3(q * 4.2 + float3(12.0, 5.0, 2.0));
+            float billows = noise3(q * 1.65 + float3(4.7, 1.9, 8.2));
+            float detail = noise3(q * 4.5 + float3(12.0, 5.0, 2.0));
 
-            float n = base * 0.62 + billows * 0.28 + detail * 0.10;
+            float n = base * 0.58 + billows * 0.30 + detail * 0.12;
 
-            float height = smoothstep(21.0, 25.0, p.y) *
-                           (1.0 - smoothstep(40.0, 46.0, p.y));
-            float verticalShape = 1.0 - abs((p.y - 31.0) / 10.0);
-            verticalShape = smoothstep(0.0, 0.8, verticalShape);
+            float height = smoothstep(20.5, 24.5, p.y) *
+                           (1.0 - smoothstep(40.5, 46.0, p.y));
+            float verticalShape = 1.0 - abs((p.y - 31.0) / 11.0);
+            verticalShape = smoothstep(0.0, 0.9, verticalShape);
 
-            return smoothstep(0.43, 0.64, n) * height * verticalShape;
+            // Preserve wispy edges while keeping dense cores.
+            return smoothstep(0.42, 0.64, n) * height * verticalShape;
         }
 
         vertex float4 sky_vertex(uint vertexID [[vertex_id]]) {
@@ -147,24 +151,24 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 float entryT = max((cloudBase - uniforms.cameraPosition.y) / ray.y, 0.0);
                 float exitT = (cloudTop - uniforms.cameraPosition.y) / ray.y;
                 if (exitT > entryT) {
-                    float span = min(exitT - entryT, 42.0);
-                    float stepLength = span / 14.0;
+                    float span = min(exitT - entryT, 46.0);
+                    float stepLength = span / 48.0;
                     float3 samplePoint = uniforms.cameraPosition.xyz + ray * (entryT + stepLength * 0.5);
 
-                    for (int i = 0; i < 14; ++i) {
-                        float density = cloudDensity(samplePoint);
+                    for (int i = 0; i < 48; ++i) {
+                        float density = cloudDensity(samplePoint, uniforms.time);
 
                         if (density > 0.008) {
                             // Beer-Lambert-like light attenuation through the volume.
-                            float lightProbeA = cloudDensity(samplePoint + sun * 5.0);
-                            float lightProbeB = cloudDensity(samplePoint + sun * 11.0);
+                            float lightProbeA = cloudDensity(samplePoint + sun * 4.0, uniforms.time);
+                            float lightProbeB = cloudDensity(samplePoint + sun * 10.0, uniforms.time);
                             float lightTransmittance = exp(-(lightProbeA * 1.7 + lightProbeB * 0.8) * 2.2);
                             float phase = 0.72 + 0.28 * pow(max(dot(ray, sun), 0.0), 3.0);
                             float lit = mix(0.38, 1.0, lightTransmittance) * phase;
 
-                            float contribution = density * 0.42;
+                            float contribution = density * 0.24;
                             cloudAccum += contribution * transmittance * lit;
-                            transmittance *= exp(-density * 0.55);
+                            transmittance *= exp(-density * 0.38);
                         }
 
                         if (transmittance < 0.018) break;
@@ -331,7 +335,8 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 filmGrainStrength,
                 exposure
             ),
-            sunScreen: sunScreen
+            sunScreen: sunScreen,
+            time: elapsedTime
         )
 
         encoder.setRenderPipelineState(skyPipeline)
