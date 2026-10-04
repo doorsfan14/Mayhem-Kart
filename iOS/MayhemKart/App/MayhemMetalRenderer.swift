@@ -116,12 +116,13 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
 
             float3 horizon = float3(0.43, 0.63, 0.90);
             float3 zenith = float3(0.035, 0.10, 0.24);
-            float height = clamp(ray.y * 0.5 + 0.5, 0.0, 1.0);
-            float3 skyColor = mix(horizon, zenith, height);
+            float up = clamp(ray.y, -0.05, 1.0);
+            float skyGradient = pow(smoothstep(-0.05, 0.95, up), 0.72);
+            float3 skyColor = mix(horizon, zenith, skyGradient);
 
-            // Keep the actual atmospheric horizon visible where the sky meets the track.
-            float horizonBand = 1.0 - smoothstep(0.0, 0.12, abs(ray.y));
-            skyColor = mix(skyColor, horizon, horizonBand * 0.55);
+            // A subtle atmospheric horizon transition; no terrain is added.
+            float horizonBand = 1.0 - smoothstep(0.0, 0.10, abs(ray.y));
+            skyColor = mix(skyColor, horizon, horizonBand * 0.22);
 
             float cloudAccum = 0.0;
             float transmittance = 1.0;
@@ -154,9 +155,10 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float sunVisibility = 1.0 - clamp(cloudAccum * 2.0, 0.0, 1.0);
 
             // Give the sun a visible angular radius instead of a nearly single-pixel dot.
-            float sunDisk = smoothstep(0.9990, 0.99965, sunAlignment);
-            float halo = pow(sunAlignment, 28.0) * 0.20 * daylight;
-            float glare = pow(sunAlignment, 7.0) * 0.045 * daylight;
+            float sunAngle = acos(clamp(dot(ray, sun), -1.0, 1.0));
+            float sunDisk = 1.0 - smoothstep(0.0045, 0.0095, sunAngle);
+            float halo = pow(sunAlignment, 22.0) * 0.42 * daylight;
+            float glare = pow(sunAlignment, 6.0) * 0.10 * daylight;
 
             float3 sunColor = float3(1.0, 0.93, 0.78);
             skyColor += sunColor * sunDisk * sunVisibility;
