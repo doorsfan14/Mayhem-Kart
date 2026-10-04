@@ -93,13 +93,20 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         }
 
         float cloudDensity(float3 p) {
-            float3 q = p * float3(0.028, 0.040, 0.028);
-            float n = noise3(q) * 0.72;
-            n += noise3(q * 2.0 + float3(7.1, 2.3, 4.7)) * 0.28;
+            // Layered 3D density: large billows + smaller erosion detail.
+            float3 q = p * float3(0.022, 0.030, 0.022);
+            float base = noise3(q);
+            float billows = noise3(q * 1.8 + float3(4.7, 1.9, 8.2));
+            float detail = noise3(q * 4.2 + float3(12.0, 5.0, 2.0));
 
-            float height = smoothstep(22.0, 27.0, p.y) *
-                           (1.0 - smoothstep(39.0, 45.0, p.y));
-            return smoothstep(0.46, 0.66, n) * height;
+            float n = base * 0.62 + billows * 0.28 + detail * 0.10;
+
+            float height = smoothstep(21.0, 25.0, p.y) *
+                           (1.0 - smoothstep(40.0, 46.0, p.y));
+            float verticalShape = 1.0 - abs((p.y - 31.0) / 10.0);
+            verticalShape = smoothstep(0.0, 0.8, verticalShape);
+
+            return smoothstep(0.43, 0.64, n) * height * verticalShape;
         }
 
         vertex float4 sky_vertex(uint vertexID [[vertex_id]]) {
@@ -135,25 +142,32 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float cloudAccum = 0.0;
             float transmittance = 1.0;
             if (ray.y > 0.025) {
-                float cloudBase = 22.0;
-                float cloudTop = 45.0;
+                float cloudBase = 21.0;
+                float cloudTop = 46.0;
                 float entryT = max((cloudBase - uniforms.cameraPosition.y) / ray.y, 0.0);
                 float exitT = (cloudTop - uniforms.cameraPosition.y) / ray.y;
                 if (exitT > entryT) {
-                    float span = min(exitT - entryT, 38.0);
-                    float stepLength = span / 5.0;
+                    float span = min(exitT - entryT, 42.0);
+                    float stepLength = span / 14.0;
                     float3 samplePoint = uniforms.cameraPosition.xyz + ray * (entryT + stepLength * 0.5);
-                    for (int i = 0; i < 5; ++i) {
+
+                    for (int i = 0; i < 14; ++i) {
                         float density = cloudDensity(samplePoint);
-                        float lit = 0.72;
-                        if ((i & 1) == 0 && density > 0.015) {
-                            float lightProbe = cloudDensity(samplePoint + sun * 9.0);
-                            lit = 0.50 + (1.0 - lightProbe) * 0.50;
+
+                        if (density > 0.008) {
+                            // Beer-Lambert-like light attenuation through the volume.
+                            float lightProbeA = cloudDensity(samplePoint + sun * 5.0);
+                            float lightProbeB = cloudDensity(samplePoint + sun * 11.0);
+                            float lightTransmittance = exp(-(lightProbeA * 1.7 + lightProbeB * 0.8) * 2.2);
+                            float phase = 0.72 + 0.28 * pow(max(dot(ray, sun), 0.0), 3.0);
+                            float lit = mix(0.38, 1.0, lightTransmittance) * phase;
+
+                            float contribution = density * 0.42;
+                            cloudAccum += contribution * transmittance * lit;
+                            transmittance *= exp(-density * 0.55);
                         }
-                        float contribution = density * 0.34;
-                        cloudAccum += contribution * transmittance * lit;
-                        transmittance *= 1.0 - density * 0.18;
-                        if (transmittance < 0.025) break;
+
+                        if (transmittance < 0.018) break;
                         samplePoint += ray * stepLength;
                     }
                 }
@@ -179,13 +193,13 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 float2 sunUV = uniforms.sunScreen.xy;
                 float2 flareVector = uv - sunUV;
                 float flareDistance = length(flareVector);
-                float centerGlare = exp(-flareDistance * flareDistance / 0.018);
-                float ring = exp(-pow((flareDistance - 0.105) / 0.035, 2.0));
+                float centerGlare = exp(-flareDistance * flareDistance / 0.035);
+                float ring = exp(-pow((flareDistance - 0.13) / 0.045, 2.0));
                 float2 axis = normalize(float2(0.7071, 0.7071));
                 float streakCoord = dot(flareVector, axis);
                 float crossCoord = dot(flareVector, float2(-axis.y, axis.x));
-                float streak = exp(-abs(streakCoord) * 18.0) * exp(-abs(crossCoord) * 95.0);
-                float glare = (centerGlare * 0.22 + ring * 0.055 + streak * 0.075)
+                float streak = exp(-abs(streakCoord) * 11.0) * exp(-abs(crossCoord) * 70.0);
+                float glare = (centerGlare * 0.42 + ring * 0.12 + streak * 0.18)
                               * daylight * sunVisibility;
                 skyColor += sunColor * glare;
             }
