@@ -121,8 +121,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
 
             float3 ray = normalize(farPoint.xyz - nearPoint.xyz);
             float3 sun = normalize(uniforms.sunDirection.xyz);
-            float sunAmount = max(dot(ray, sun), 0.0);
-
             float3 horizon = float3(0.43, 0.63, 0.90);
             float3 zenith = float3(0.020, 0.055, 0.15);
             float up = max(ray.y, 0.0);
@@ -131,6 +129,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float horizonBand = 1.0 - smoothstep(0.0, 0.075, abs(ray.y));
             skyColor = mix(skyColor, horizon, horizonBand * 0.16);
 
+            float daylight = uniforms.sky.x;
             float cloudAccum = 0.0;
             float transmittance = 1.0;
             if (ray.y > 0.025) {
@@ -158,7 +157,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 }
             }
 
-            float daylight = uniforms.sky.x;
             float3 cloudColor = mix(float3(0.12, 0.14, 0.17), float3(1.0, 0.98, 0.92), daylight);
             skyColor = mix(skyColor, cloudColor, clamp(cloudAccum, 0.0, 0.92));
 
