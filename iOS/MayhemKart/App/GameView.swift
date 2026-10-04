@@ -61,8 +61,17 @@ private struct MayhemMetalView: UIViewRepresentable {
         ])
         renderer.fpsLabel = fpsLabel
 
-        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
+        let pan = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handlePan(_:))
+        )
         view.addGestureRecognizer(pan)
+
+        let pinch = UIPinchGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handlePinch(_:))
+        )
+        view.addGestureRecognizer(pinch)
 
         return view
     }
@@ -81,8 +90,19 @@ private struct MayhemMetalView: UIViewRepresentable {
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
             guard let renderer else { return }
             let translation = gesture.translation(in: gesture.view)
-            renderer.orbitCamera(deltaX: Float(translation.x), deltaY: Float(translation.y))
+            renderer.orbitCamera(
+                deltaX: Float(translation.x),
+                deltaY: Float(translation.y)
+            )
             gesture.setTranslation(.zero, in: gesture.view)
+        }
+
+        @objc func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+            guard let renderer else { return }
+            if gesture.state == .changed {
+                renderer.zoomCamera(scale: Float(gesture.scale))
+                gesture.scale = 1
+            }
         }
     }
 }
