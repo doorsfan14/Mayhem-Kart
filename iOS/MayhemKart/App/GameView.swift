@@ -4,31 +4,110 @@ import MetalKit
 
 struct GameView: View {
     @State private var timeOfDay: Float = 12
+    @State private var speed: Double = 0
+    @State private var position: Int = 1
+    @State private var lap: Int = 1
+    @State private var itemPulse = false
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             MayhemMetalView(timeOfDay: timeOfDay)
                 .ignoresSafeArea()
 
-            VStack(spacing: 8) {
-                HStack {
-                    Text("TimeOfDay")
-                    Spacer()
-                    Text(String(Int(timeOfDay)) + ":00")
-                        .monospacedDigit()
-                }
+            // Bare-bones game HUD. This is actual GUI content layered above Metal,
+            // separate from the camera/atmospheric effects in the renderer.
+            VStack {
+                HStack(alignment: .top, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("1st")
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        Text("POSITION")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .opacity(0.72)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.black.opacity(0.58))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                Slider(value: Binding(
-                    get: { Double(timeOfDay) },
-                    set: { timeOfDay = Float($0) }
-                ), in: 0...24, step: 0.25)
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text("LAP \(lap)/3")
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                        Text("00:00.000")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .opacity(0.78)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.black.opacity(0.58))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+                Spacer()
+
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("ITEM")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .opacity(0.7)
+
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(.white.opacity(0.72), lineWidth: 1.5)
+                            .frame(width: 58, height: 58)
+                            .overlay {
+                                Text("?")
+                                    .font(.system(size: 27, weight: .heavy, design: .rounded))
+                                    .opacity(itemPulse ? 1.0 : 0.72)
+                                    .scaleEffect(itemPulse ? 1.08 : 1.0)
+                            }
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text(String(format: "%.0f", speed))
+                            .font(.system(size: 42, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                        Text("KM/H")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .opacity(0.72)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 12)
+
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("TimeOfDay")
+                        Spacer()
+                        Text(String(Int(timeOfDay)) + ":00")
+                            .monospacedDigit()
+                    }
+
+                    Slider(value: Binding(
+                        get: { Double(timeOfDay) },
+                        set: { timeOfDay = Float($0) }
+                    ), in: 0...24, step: 0.25)
+                }
+                .padding(14)
+                .background(.black.opacity(0.72))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding()
             }
-            .padding(14)
-            .background(.black.opacity(0.72))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .padding()
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            withAnimation(
+                .easeInOut(duration: 0.75)
+                .repeatForever(autoreverses: true)
+            ) {
+                itemPulse = true
+            }
+        }
     }
 }
 
