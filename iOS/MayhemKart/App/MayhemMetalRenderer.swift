@@ -195,8 +195,8 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
 
             float3 ray = normalize(farPoint.xyz - nearPoint.xyz);
             float3 sun = normalize(uniforms.sunDirection.xyz);
-            float3 horizon = float3(0.43, 0.63, 0.90);
-            float3 zenith = float3(0.020, 0.055, 0.15);
+            float3 horizon = float3(0.22, 0.62, 1.00);
+            float3 zenith = float3(0.015, 0.10, 0.42);
             float up = max(ray.y, 0.0);
             float horizonFade = pow(1.0 - up, 0.72);
             float3 skyColor = mix(zenith, horizon, horizonFade);
@@ -237,7 +237,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 }
             }
 
-            float3 cloudColor = mix(float3(0.12, 0.14, 0.17), float3(1.0, 0.98, 0.92), daylight);
+            float3 cloudColor = mix(float3(0.16, 0.19, 0.28), float3(1.0, 0.99, 0.92), daylight);
             skyColor = mix(skyColor, cloudColor, clamp(cloudAccum, 0.0, 0.92));
 
             float sunAlignment = max(dot(ray, sun), 0.0);
