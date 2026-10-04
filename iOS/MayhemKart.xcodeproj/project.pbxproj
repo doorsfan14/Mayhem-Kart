@@ -23,7 +23,7 @@
 		B100000000000005 /* MayhemKart.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mayhem Kart.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B100000000000006 /* MayhemDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemDiscovery.swift; sourceTree = "<group>"; };
 		B100000000000007 /* MayhemSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemSession.swift; sourceTree = "<group>"; };
-		B100000000000008 /* MayhemGraphics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemGraphics.swift; sourceTree = "<group>"; };
+		B100000000000008 /* MayhemGraphics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Engine/Graphics/MayhemGraphics.swift; sourceTree = "<group>"; };
 		B100000000000009 /* MayhemMetalRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemMetalRenderer.swift; sourceTree = "<group>"; };
 		B100000000000010 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
