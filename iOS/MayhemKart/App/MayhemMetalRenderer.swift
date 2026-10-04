@@ -126,15 +126,22 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float cloudAccum = 0.0;
             float transmittance = 1.0;
             float3 samplePoint = uniforms.cameraPosition.xyz + ray * 22.0;
-            for (int i = 0; i < 10; ++i) {
-                samplePoint += ray * 5.0;
+            // Eight volume samples; probe the sun-facing density every other step
+            // instead of doing a second full 3D-noise evaluation at every sample.
+            for (int i = 0; i < 8; ++i) {
+                samplePoint += ray * 6.0;
                 float density = cloudDensity(samplePoint);
-                float lightProbe = cloudDensity(samplePoint + sun * 8.0);
-                float lit = 0.45 + (1.0 - lightProbe) * 0.55;
-                float contribution = density * 0.22;
+                float lit = 0.72;
+
+                if ((i & 1) == 0 && density > 0.01) {
+                    float lightProbe = cloudDensity(samplePoint + sun * 10.0);
+                    lit = 0.52 + (1.0 - lightProbe) * 0.48;
+                }
+
+                float contribution = density * 0.27;
                 cloudAccum += contribution * transmittance * lit;
-                transmittance *= 1.0 - density * 0.14;
-                if (transmittance < 0.03) break;
+                transmittance *= 1.0 - density * 0.16;
+                if (transmittance < 0.035) break;
             }
 
             float daylight = uniforms.sky.x;
@@ -144,13 +151,15 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             // Sun disk + restrained atmospheric glare. The disk stays sharp when unobstructed;
             // clouds naturally soften it because cloud accumulation is applied first.
             float sunAlignment = max(dot(ray, sun), 0.0);
-            float sunVisibility = 1.0 - clamp(cloudAccum * 1.8, 0.0, 1.0);
-            float disk = smoothstep(0.99982, 0.99996, sunAlignment);
-            float halo = pow(sunAlignment, 48.0) * 0.16 * daylight;
-            float glare = pow(sunAlignment, 10.0) * 0.035 * daylight;
+            float sunVisibility = 1.0 - clamp(cloudAccum * 2.0, 0.0, 1.0);
+
+            // Give the sun a visible angular radius instead of a nearly single-pixel dot.
+            float sunDisk = smoothstep(0.9990, 0.99965, sunAlignment);
+            float halo = pow(sunAlignment, 28.0) * 0.20 * daylight;
+            float glare = pow(sunAlignment, 7.0) * 0.045 * daylight;
 
             float3 sunColor = float3(1.0, 0.93, 0.78);
-            skyColor += sunColor * disk * sunVisibility;
+            skyColor += sunColor * sunDisk * sunVisibility;
             skyColor += sunColor * (halo + glare) * sunVisibility;
             skyColor *= uniforms.sky.y;
 
