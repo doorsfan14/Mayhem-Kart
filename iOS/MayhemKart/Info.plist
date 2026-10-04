@@ -18,5 +18,7 @@
     <array>
         <string>_mayhemkart._tcp</string>
     </array>
-    <key>MetalHudEnabled</key>\n    <true/>\n</dict>
+    <key>MetalHudEnabled</key>
+    <true/>
+</dict>
 </plist>
