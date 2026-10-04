@@ -19,6 +19,11 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
     private let commandQueue: MTLCommandQueue
     private let skyPipeline: MTLRenderPipelineState
     private let postPipeline: MTLRenderPipelineState
+    private struct PostUniformsCPU {
+        var sunUV: SIMD2<Float>
+        var texel: SIMD2<Float>
+        var intensity: Float
+    }
     private let noDepthState: MTLDepthStencilState
     private var hdrTexture: MTLTexture?
 
