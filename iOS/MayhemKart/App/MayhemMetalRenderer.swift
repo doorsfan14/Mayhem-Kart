@@ -2,6 +2,7 @@ import Foundation
 import MetalKit
 import simd
 import QuartzCore
+import UIKit
 
 final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
     private struct Vertex {
@@ -35,6 +36,9 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
     private var viewportSize = SIMD2<Float>(1, 1)
     private var elapsedTime: Float = 0
     private var lastTimestamp: CFTimeInterval = CACurrentMediaTime()
+    private var fpsAccumulator: Float = 0
+    private var fpsFrameCount = 0
+    weak var fpsLabel: UILabel?
 
     /// Modders can set this directly per track, e.g. 7.5 for 07:30.
     var timeOfDay = MayhemTimeOfDay(hour: 12)
@@ -286,6 +290,18 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         lastTimestamp = now
         elapsedTime += deltaTime
 
+        fpsAccumulator += deltaTime
+        fpsFrameCount += 1
+        if fpsAccumulator >= 0.25 {
+            let fps = Float(fpsFrameCount) / fpsAccumulator
+            let text = String(format: "%.0f FPS", fps)
+            DispatchQueue.main.async { [weak self] in
+                self?.fpsLabel?.text = text
+            }
+            fpsAccumulator = 0
+            fpsFrameCount = 0
+        }
+
         let aspect = viewportSize.x / max(viewportSize.y, 1)
         let projection = Self.perspective(
             fovY: camera.fieldOfView * .pi / 180,
@@ -315,81 +331,25 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         encoder.setDepthStencilState(depthState)
         encoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
-        let light = sun
-
-        Self.drawCube(
-            encoder: encoder,
-            model: simd_mul(Self.translation(0, -0.16, 0), Self.scale(5.2, 0.18, 22)),
-            color: SIMD3<Float>(0.16, 0.17, 0.18),
-            projection: projection, viewMatrix: viewMatrix, lightDirection: light,
-            timeOfDay: timeOfDay
-        )
-
-        for x: Float in [-6.0, 6.0] {
-            Self.drawCube(
-                encoder: encoder,
-                model: simd_mul(Self.translation(x, -0.22, 0), Self.scale(7.0, 0.12, 22)),
-                color: SIMD3<Float>(0.18, 0.24, 0.18),
-                projection: projection, viewMatrix: viewMatrix, lightDirection: light,
-                timeOfDay: timeOfDay
-            )
-        }
-
-        for x: Float in [-5.55, 5.55] {
-            Self.drawCube(
-                encoder: encoder,
-                model: simd_mul(Self.translation(x, 0.03, 0), Self.scale(0.28, 0.22, 22)),
-                color: SIMD3<Float>(0.72, 0.72, 0.67),
-                projection: projection, viewMatrix: viewMatrix, lightDirection: light,
-                timeOfDay: timeOfDay
-            )
-        }
-
-        for z: Float in stride(from: -18.0, through: 18.0, by: 4.0) {
-            Self.drawCube(
-                encoder: encoder,
-                model: simd_mul(Self.translation(0, 0.03, Float(z)), Self.scale(0.10, 0.03, 0.9)),
-                color: SIMD3<Float>(0.86, 0.84, 0.72),
-                projection: projection, viewMatrix: viewMatrix, lightDirection: light,
-                timeOfDay: timeOfDay
-            )
-        }
-
-        let kartZ = 2.4 + sin(elapsedTime * 3.0) * 0.035
-        let kartSteer = sin(elapsedTime * 0.9) * 0.08
-        let kartBase = simd_mul(Self.translation(kartSteer, 0.48, kartZ), Self.rotationY(kartSteer))
-
-        Self.drawCube(
-            encoder: encoder,
-            model: simd_mul(kartBase, Self.scale(1.25, 0.38, 1.65)),
-            color: SIMD3<Float>(0.08, 0.40, 0.78),
-            projection: projection, viewMatrix: viewMatrix, lightDirection: light,
-            timeOfDay: timeOfDay
-        )
-
-        Self.drawCube(
-            encoder: encoder,
-            model: simd_mul(kartBase, simd_mul(Self.translation(0, 0.48, -0.15), Self.scale(0.72, 0.42, 0.72))),
-            color: SIMD3<Float>(0.13, 0.16, 0.20),
-            projection: projection, viewMatrix: viewMatrix, lightDirection: light,
-            timeOfDay: timeOfDay
-        )
-
-        for x: Float in [-1.05, 1.05] {
-            for z: Float in [-1.0, 1.0] {
-                Self.drawCube(
-                    encoder: encoder,
-                    model: simd_mul(kartBase, simd_mul(Self.translation(x, -0.20, z), Self.scale(0.28, 0.45, 0.38))),
-                    color: SIMD3<Float>(0.018, 0.022, 0.026),
-                    projection: projection, viewMatrix: viewMatrix, lightDirection: light,
-                    timeOfDay: timeOfDay
-                )
-            }
-        }
-
         encoder.endEncoding()
         commandBuffer.present(drawable)
         commandBuffer.commit()
+    }
+
+
+    func orbitCamera(deltaX: Float, deltaY: Float) {
+        let offset = camera.position - camera.target
+        let radius = max(simd_length(offset), 0.5)
+        var yaw = atan2(offset.x, offset.z)
+        var pitch = asin(offset.y / radius)
+        yaw -= deltaX * 0.008
+        pitch += deltaY * 0.008
+        pitch = min(max(pitch, -1.35), 1.35)
+        camera.position = camera.target + SIMD3<Float>(
+            sin(yaw) * cos(pitch) * radius,
+            sin(pitch) * radius,
+            cos(yaw) * cos(pitch) * radius
+        )
     }
 
     private static func drawCube(
