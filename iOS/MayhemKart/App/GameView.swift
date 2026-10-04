@@ -45,6 +45,25 @@ private struct MayhemMetalView: UIViewRepresentable {
 
         renderer.timeOfDay = MayhemTimeOfDay(hour: timeOfDay)
         context.coordinator.renderer = renderer
+
+        let fpsLabel = UILabel()
+        fpsLabel.text = "-- FPS"
+        fpsLabel.textColor = .white
+        fpsLabel.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .medium)
+        fpsLabel.backgroundColor = UIColor.black.withAlphaComponent(0.65)
+        fpsLabel.layer.cornerRadius = 6
+        fpsLabel.layer.masksToBounds = true
+        fpsLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(fpsLabel)
+        NSLayoutConstraint.activate([
+            fpsLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            fpsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10)
+        ])
+        renderer.fpsLabel = fpsLabel
+
+        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
+        view.addGestureRecognizer(pan)
+
         return view
     }
 
@@ -56,7 +75,14 @@ private struct MayhemMetalView: UIViewRepresentable {
         Coordinator()
     }
 
-    final class Coordinator {
+    final class Coordinator: NSObject {
         var renderer: MayhemMetalRenderer?
+
+        @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
+            guard let renderer else { return }
+            let translation = gesture.translation(in: gesture.view)
+            renderer.orbitCamera(deltaX: Float(translation.x), deltaY: Float(translation.y))
+            gesture.setTranslation(.zero, in: gesture.view)
+        }
     }
 }
