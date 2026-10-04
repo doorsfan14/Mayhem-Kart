@@ -23,7 +23,7 @@
 		B100000000000005 /* MayhemKart.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mayhem Kart.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B100000000000006 /* MayhemDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemDiscovery.swift; sourceTree = "<group>"; };
 		B100000000000007 /* MayhemSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemSession.swift; sourceTree = "<group>"; };
-		B100000000000008 /* MayhemGraphics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Graphics/MayhemGraphics.swift; sourceTree = "<group>"; };
+		B100000000000008 /* MayhemGraphics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Graphics/MayhemGraphics.swift; sourceTree = "<group>"; };
 		B100000000000009 /* MayhemMetalRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MayhemMetalRenderer.swift; sourceTree = "<group>"; };
 		B100000000000010 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -35,7 +35,7 @@
 /* Begin PBXGroup section */
 		D100000000000001 = {isa = PBXGroup; children = (D100000000000002, D100000000000003, B100000000000004); sourceTree = "<group>"; };
 		D100000000000002 /* App */ = {isa = PBXGroup; children = (B100000000000001, B100000000000002, B100000000000006, B100000000000007, B100000000000009, B100000000000010); path = "MayhemKart/App"; sourceTree = "<group>"; };
-		D100000000000003 /* Engine */ = {isa = PBXGroup; children = (B100000000000003, B100000000000008); path = "../Engine"; sourceTree = "<group>"; };
+		D100000000000003 /* Engine */ = {isa = PBXGroup; children = (B100000000000003, B100000000000008); path = "../Engine/Core"; sourceTree = "<group>"; };
 		E100000000000001 /* Products */ = {isa = PBXGroup; children = (B100000000000005); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
