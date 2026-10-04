@@ -194,8 +194,8 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float3 samplePoint = uniforms.cameraPosition.xyz + ray * 22.0;
             for (int i = 0; i < 18; ++i) {
                 samplePoint += ray * 3.8;
-                float density = cloudField(samplePoint);
-                float lightProbe = cloudField(samplePoint + sun * 8.0);
+                float density = cloudDensity(samplePoint);
+                float lightProbe = cloudDensity(samplePoint + sun * 8.0);
                 float lit = 0.45 + (1.0 - lightProbe) * 0.55;
                 float contribution = density * 0.18;
                 cloudAccum += contribution * transmittance * lit;
