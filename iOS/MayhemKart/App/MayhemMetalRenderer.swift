@@ -11,6 +11,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         var sunDirection: SIMD4<Float>
         var sky: SIMD4<Float>
         var effects: SIMD4<Float>
+        var sunScreen: SIMD4<Float>
     }
 
     private let device: MTLDevice
@@ -61,6 +62,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float4 sunDirection;
             float4 sky;
             float4 effects;
+            float4 sunScreen;
         };
 
         float hash3(float3 p) {
@@ -172,6 +174,22 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             skyColor += sunColor * sunDisk * sunVisibility * 1.8;
             skyColor += sunColor * (corona + halo + broadGlow) * sunVisibility;
 
+            // Screen-space sun glare / lens flare, tied to the projected sun position.
+            if (daylight > 0.02 && sunVisibility > 0.02 && uniforms.sunScreen.w > 0.0) {
+                float2 sunUV = uniforms.sunScreen.xy;
+                float2 flareVector = uv - sunUV;
+                float flareDistance = length(flareVector);
+                float centerGlare = exp(-flareDistance * flareDistance / 0.018);
+                float ring = exp(-pow((flareDistance - 0.105) / 0.035, 2.0));
+                float2 axis = normalize(float2(0.7071, 0.7071));
+                float streakCoord = dot(flareVector, axis);
+                float crossCoord = dot(flareVector, float2(-axis.y, axis.x));
+                float streak = exp(-abs(streakCoord) * 18.0) * exp(-abs(crossCoord) * 95.0);
+                float glare = (centerGlare * 0.22 + ring * 0.055 + streak * 0.075)
+                              * daylight * sunVisibility;
+                skyColor += sunColor * glare;
+            }
+
             // Cheap camera/screen effects. These are applied after sky/cloud lighting
             // so they affect the complete visible image without another full-resolution pass.
             if (uniforms.effects.x > 0.5) {
@@ -272,6 +290,21 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
 
         let sun = timeOfDay.sunDirection
         let daylight = timeOfDay.daylight
+
+        let sunWorldPoint = camera.position + sun * 100.0
+        let sunClip = simd_mul(simd_mul(projection, viewMatrix), SIMD4(sunWorldPoint, 1))
+        let sunScreen: SIMD4<Float>
+        if sunClip.w > 0.001 {
+            let sunNDC = SIMD2(sunClip.x / sunClip.w, sunClip.y / sunClip.w)
+            sunScreen = SIMD4(
+                sunNDC.x * 0.5 + 0.5,
+                1.0 - (sunNDC.y * 0.5 + 0.5),
+                0,
+                1
+            )
+        } else {
+            sunScreen = SIMD4(-10, -10, 0, -1)
+        }
 
         var skyUniforms = SkyUniforms(
             inverseViewProjection: inverseViewProjection,
