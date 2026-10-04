@@ -47,6 +47,43 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         #include <metal_stdlib>
         using namespace metal;
 
+        float hash3(float3 p) {
+            p = fract(p * 0.3183099 + float3(0.1, 0.2, 0.3));
+            p *= 17.0;
+            return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+        }
+
+        float noise3(float3 p) {
+            float3 i = floor(p);
+            float3 f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+
+            float n000 = hash3(i + float3(0, 0, 0));
+            float n100 = hash3(i + float3(1, 0, 0));
+            float n010 = hash3(i + float3(0, 1, 0));
+            float n110 = hash3(i + float3(1, 1, 0));
+            float n001 = hash3(i + float3(0, 0, 1));
+            float n101 = hash3(i + float3(1, 0, 1));
+            float n011 = hash3(i + float3(0, 1, 1));
+            float n111 = hash3(i + float3(1, 1, 1));
+
+            float nx00 = mix(n000, n100, f.x);
+            float nx10 = mix(n010, n110, f.x);
+            float nx01 = mix(n001, n101, f.x);
+            float nx11 = mix(n011, n111, f.x);
+            return mix(mix(nx00, nx10, f.y), mix(nx01, nx11, f.y), f.z);
+        }
+
+        float cloudDensity(float3 p) {
+            float3 q = p * float3(0.028, 0.040, 0.028);
+            float n = noise3(q) * 0.72;
+            n += noise3(q * 2.0 + float3(7.1, 2.3, 4.7)) * 0.28;
+
+            float height = smoothstep(22.0, 27.0, p.y) *
+                           (1.0 - smoothstep(39.0, 45.0, p.y));
+            return smoothstep(0.46, 0.66, n) * height;
+        }
+
         vertex float4 sky_vertex(uint vertexID [[vertex_id]]) {
             const float2 positions[3] = {
                 float2(-1, -1), float2(3, -1), float2(-1, 3)
@@ -78,10 +115,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             // Keep the actual atmospheric horizon visible where the sky meets the track.
             float horizonBand = 1.0 - smoothstep(0.0, 0.12, abs(ray.y));
             skyColor = mix(skyColor, horizon, horizonBand * 0.55);
-
-            float sunset = pow(max(1.0 - abs(sun.y), 0.0), 2.0);
-            skyColor += float3(0.95, 0.34, 0.10) * sunset * pow(sunAmount, 6.0) * 0.75;
-            skyColor += float3(1.0, 0.86, 0.60) * pow(sunAmount, 80.0) * 0.9;
 
             float cloudAccum = 0.0;
             float transmittance = 1.0;
@@ -115,8 +148,6 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         """
 
         guard let library = try? device.makeLibrary(source: shaderSource, options: nil),
-              let vertexFunction = library.makeFunction(name: "mayhem_vertex"),
-              let fragmentFunction = library.makeFunction(name: "mayhem_fragment"),
               let skyVertex = library.makeFunction(name: "sky_vertex"),
               let skyFragment = library.makeFunction(name: "sky_fragment") else { return nil }
 
@@ -136,6 +167,13 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         self.noDepthState = noDepthState
 
         super.init()
+
+        if view.drawableSize.width > 0, view.drawableSize.height > 0 {
+            viewportSize = SIMD2(
+                Float(view.drawableSize.width),
+                Float(view.drawableSize.height)
+            )
+        }
 
         view.device = device
         view.delegate = self
