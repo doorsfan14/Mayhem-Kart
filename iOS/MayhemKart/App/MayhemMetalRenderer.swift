@@ -141,13 +141,17 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float3 cloudColor = mix(float3(0.12, 0.14, 0.17), float3(1.0, 0.98, 0.92), daylight);
             skyColor = mix(skyColor, cloudColor, clamp(cloudAccum, 0.0, 0.92));
 
-            // Dynamic sun glare: only appears when the camera is actually aimed at the sun.
-            // Keep it cheap: one smooth directional mask and a tiny radial falloff.
-            float glareAlignment = max(dot(ray, sun), 0.0);
-            float glare = pow(glareAlignment, 96.0) * (0.35 + daylight * 0.65);
-            float glareHalo = pow(glareAlignment, 18.0) * 0.10 * daylight;
-            float3 glareColor = float3(1.0, 0.82, 0.48);
-            skyColor += glareColor * (glare * 1.35 + glareHalo);
+            // Sun disk + restrained atmospheric glare. The disk stays sharp when unobstructed;
+            // clouds naturally soften it because cloud accumulation is applied first.
+            float sunAlignment = max(dot(ray, sun), 0.0);
+            float sunVisibility = 1.0 - clamp(cloudAccum * 1.8, 0.0, 1.0);
+            float disk = smoothstep(0.99982, 0.99996, sunAlignment);
+            float halo = pow(sunAlignment, 48.0) * 0.16 * daylight;
+            float glare = pow(sunAlignment, 10.0) * 0.035 * daylight;
+
+            float3 sunColor = float3(1.0, 0.93, 0.78);
+            skyColor += sunColor * disk * sunVisibility;
+            skyColor += sunColor * (halo + glare) * sunVisibility;
             skyColor *= uniforms.sky.y;
 
             return float4(clamp(skyColor, 0.0, 1.0), 1.0);
