@@ -184,19 +184,28 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float cloudAccum = 0.0;
             float transmittance = 1.0;
             float3 samplePoint = uniforms.cameraPosition.xyz + ray * 22.0;
-            for (int i = 0; i < 18; ++i) {
-                samplePoint += ray * 3.8;
+            for (int i = 0; i < 10; ++i) {
+                samplePoint += ray * 5.0;
                 float density = cloudDensity(samplePoint);
                 float lightProbe = cloudDensity(samplePoint + sun * 8.0);
                 float lit = 0.45 + (1.0 - lightProbe) * 0.55;
-                float contribution = density * 0.18;
+                float contribution = density * 0.22;
                 cloudAccum += contribution * transmittance * lit;
-                transmittance *= 1.0 - density * 0.12;
+                transmittance *= 1.0 - density * 0.14;
+                if (transmittance < 0.03) break;
             }
 
             float daylight = uniforms.sky.x;
             float3 cloudColor = mix(float3(0.12, 0.14, 0.17), float3(1.0, 0.98, 0.92), daylight);
             skyColor = mix(skyColor, cloudColor, clamp(cloudAccum, 0.0, 0.92));
+
+            // Dynamic sun glare: only appears when the camera is actually aimed at the sun.
+            // Keep it cheap: one smooth directional mask and a tiny radial falloff.
+            float glareAlignment = max(dot(ray, sun), 0.0);
+            float glare = pow(glareAlignment, 96.0) * (0.35 + daylight * 0.65);
+            float glareHalo = pow(glareAlignment, 18.0) * 0.10 * daylight;
+            float3 glareColor = float3(1.0, 0.82, 0.48);
+            skyColor += glareColor * (glare * 1.35 + glareHalo);
             skyColor *= uniforms.sky.y;
 
             return float4(clamp(skyColor, 0.0, 1.0), 1.0);
