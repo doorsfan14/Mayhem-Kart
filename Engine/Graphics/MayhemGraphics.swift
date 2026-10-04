@@ -20,7 +20,7 @@ public struct MayhemTimeOfDay {
         let angle = (hour - 6) / 24 * 2 * .pi
         let elevation = sin(angle)
         let azimuth = cos(angle)
-        return simd_normalize(SIMD3<Float>(azimuth * 0.65, max(elevation, -0.15), 0.45))
+        return simd_normalize(SIMD3<Float>(azimuth * 0.65, max(elevation, -0.15), -0.45))
     }
 
     public var daylight: Float {
