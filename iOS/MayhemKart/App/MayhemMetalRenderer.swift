@@ -122,6 +122,17 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             return float4(positions[vertexID], 0, 1);
         }
 
+        struct PostUniforms {
+            float2 sunUV;
+            float2 texel;
+            float intensity;
+        };
+
+        vertex float4 post_vertex(uint vertexID [[vertex_id]]) {
+            const float2 positions[3] = { float2(-1,-1), float2(3,-1), float2(-1,3) };
+            return float4(positions[vertexID],0,1);
+        }
+
         fragment float4 post_fragment(
             float4 position [[position]],
             texture2d<float> source [[texture(0)]],
