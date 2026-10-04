@@ -321,7 +321,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             timeOfDay: timeOfDay
         )
 
-        for x in [-6.0, 6.0] {
+        for x: Float in [-6.0, 6.0] {
             Self.drawCube(
                 encoder: encoder,
                 model: simd_mul(Self.translation(x, -0.22, 0), Self.scale(7.0, 0.12, 22)),
@@ -331,7 +331,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             )
         }
 
-        for x in [-5.55, 5.55] {
+        for x: Float in [-5.55, 5.55] {
             Self.drawCube(
                 encoder: encoder,
                 model: simd_mul(Self.translation(x, 0.03, 0), Self.scale(0.28, 0.22, 22)),
@@ -341,7 +341,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             )
         }
 
-        for z in stride(from: -18.0, through: 18.0, by: 4.0) {
+        for z: Float in stride(from: -18.0, through: 18.0, by: 4.0) {
             Self.drawCube(
                 encoder: encoder,
                 model: simd_mul(Self.translation(0, 0.03, Float(z)), Self.scale(0.10, 0.03, 0.9)),
@@ -371,8 +371,8 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             timeOfDay: timeOfDay
         )
 
-        for x in [-1.05, 1.05] {
-            for z in [-1.0, 1.0] {
+        for x: Float in [-1.05, 1.05] {
+            for z: Float in [-1.0, 1.0] {
                 Self.drawCube(
                     encoder: encoder,
                     model: simd_mul(kartBase, simd_mul(Self.translation(x, -0.20, z), Self.scale(0.28, 0.45, 0.38))),
