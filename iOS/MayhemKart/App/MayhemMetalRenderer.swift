@@ -152,7 +152,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float diffuse = max(dot(normalize(in.normal), light), 0.0);
             float shadow = cloudShadow(in.worldPosition, light);
             float cloudShade = 1.0 - shadow * uniforms.timeOfDay.z;
-            float lighting = 0.16 + diffuse * 0.84;
+            float lighting = 0.42 + diffuse * 0.58;
             lighting *= cloudShade;
             return float4(uniforms.baseColor.rgb * lighting, 1.0);
         }
@@ -313,10 +313,19 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
 
         let light = sun
 
+        // Wide terrain creates a real distant horizon beyond the track.
+        Self.drawCube(
+            encoder: encoder,
+            model: simd_mul(Self.translation(0, -0.41, 0), Self.scale(140.0, 0.05, 140.0)),
+            color: SIMD3<Float>(0.18, 0.25, 0.18),
+            projection: projection, viewMatrix: viewMatrix, lightDirection: light,
+            timeOfDay: timeOfDay
+        )
+
         Self.drawCube(
             encoder: encoder,
             model: simd_mul(Self.translation(0, -0.16, 0), Self.scale(5.2, 0.18, 22)),
-            color: SIMD3<Float>(0.055, 0.06, 0.07),
+            color: SIMD3<Float>(0.16, 0.17, 0.18),
             projection: projection, viewMatrix: viewMatrix, lightDirection: light,
             timeOfDay: timeOfDay
         )
