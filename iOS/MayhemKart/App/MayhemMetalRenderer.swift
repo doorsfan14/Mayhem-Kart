@@ -91,34 +91,44 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             return fract(p.x * p.y);
         }
 
-        float noise2(float2 p) {
-            float2 i = floor(p);
-            float2 f = fract(p);
+        float noise3(float3 p) {
+            float3 i = floor(p);
+            float3 f = fract(p);
             f = f * f * (3.0 - 2.0 * f);
-            float a = hash21(i);
-            float b = hash21(i + float2(1, 0));
-            float c = hash21(i + float2(0, 1));
-            float d = hash21(i + float2(1, 1));
-            return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+            float n000 = hash21(i.xy + i.z * 17.0);
+            float n100 = hash21(i.xy + float2(1, 0) + i.z * 17.0);
+            float n010 = hash21(i.xy + float2(0, 1) + i.z * 17.0);
+            float n110 = hash21(i.xy + float2(1, 1) + i.z * 17.0);
+            float n001 = hash21(i.xy + (i.z + 1.0) * 17.0);
+            float n101 = hash21(i.xy + float2(1, 0) + (i.z + 1.0) * 17.0);
+            float n011 = hash21(i.xy + float2(0, 1) + (i.z + 1.0) * 17.0);
+            float n111 = hash21(i.xy + float2(1, 1) + (i.z + 1.0) * 17.0);
+            float x00 = mix(n000, n100, f.x);
+            float x10 = mix(n010, n110, f.x);
+            float x01 = mix(n001, n101, f.x);
+            float x11 = mix(n011, n111, f.x);
+            return mix(mix(x00, x10, f.y), mix(x01, x11, f.y), f.z);
         }
 
-        float cloudField(float3 p) {
-            float2 q = p.xz * 0.035 + float2(p.y * 0.018, p.y * -0.012);
-            float n = noise2(q) * 0.55;
-            n += noise2(q * 2.1) * 0.30;
-            n += noise2(q * 4.7) * 0.15;
-            float vertical = 1.0 - abs(p.y - 34.0) / 12.0;
-            return clamp((n - 0.48) * 4.0, 0.0, 1.0) * clamp(vertical, 0.0, 1.0);
+        float cloudDensity(float3 p) {
+            float3 q = p * float3(0.032, 0.045, 0.032);
+            float n = noise3(q) * 0.58;
+            n += noise3(q * 2.15 + float3(4.1, 1.7, 8.3)) * 0.27;
+            n += noise3(q * 4.5 + float3(2.2, 7.4, 3.6)) * 0.15;
+
+            float height = smoothstep(22.0, 27.0, p.y) * (1.0 - smoothstep(39.0, 45.0, p.y));
+            float billow = smoothstep(0.44, 0.68, n);
+            return billow * height;
         }
 
         float cloudShadow(float3 worldPosition, float3 sunDirection) {
             float3 p = worldPosition + float3(0, 34, 0);
             float shadow = 0.0;
-            for (int i = 0; i < 6; ++i) {
-                p += sunDirection * (8.0 + float(i) * 7.0);
-                shadow += cloudField(p);
+            for (int i = 0; i < 8; ++i) {
+                p += sunDirection * 7.0;
+                shadow += cloudDensity(p);
             }
-            return clamp(shadow / 6.0, 0.0, 1.0);
+            return clamp(shadow / 8.0, 0.0, 1.0);
         }
 
         vertex SceneOut mayhem_vertex(
