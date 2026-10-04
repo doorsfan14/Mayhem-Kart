@@ -145,17 +145,37 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             constexpr sampler s(address::clamp_to_edge, filter::linear);
             float2 uv = position.xy / float2(source.get_width(), source.get_height());
             float3 base = source.sample(s, uv).rgb;
-            float3 bloom = float3(0.0);
-            const float w[5] = {0.227027,0.194594,0.121621,0.054054,0.016216};
-            for (int i=0;i<5;++i) {
-                float2 dx=float2(u.texel.x*float(i),0);
-                float2 dy=float2(0,u.texel.y*float(i));
-                bloom += max(source.sample(s,uv+dx).rgb-1.0,0.0)*w[i];
-                bloom += max(source.sample(s,uv-dx).rgb-1.0,0.0)*w[i];
-                bloom += max(source.sample(s,uv+dy).rgb-1.0,0.0)*w[i];
-                bloom += max(source.sample(s,uv-dy).rgb-1.0,0.0)*w[i];
+            float3 bloom = max(base - 1.0, 0.0) * 0.227027;
+            const float w[3] = {0.194594, 0.121621, 0.054054};
+            for (int i=1;i<=3;++i) {
+                float2 dx = float2(u.texel.x * float(i) * 2.0, 0);
+                float2 dy = float2(0, u.texel.y * float(i) * 2.0);
+                bloom += max(source.sample(s,uv+dx).rgb-1.0,0.0)*w[i-1];
+                bloom += max(source.sample(s,uv-dx).rgb-1.0,0.0)*w[i-1];
+                bloom += max(source.sample(s,uv+dy).rgb-1.0,0.0)*w[i-1];
+                bloom += max(source.sample(s,uv-dy).rgb-1.0,0.0)*w[i-1];
             }
             float3 hdr = base + bloom * u.intensity;
+
+            if (u.sunUV.x > -1.0) {
+                float2 d = uv - u.sunUV;
+                float r2 = dot(d, d);
+                float core = exp(-r2 / 0.0022);
+                float haze = exp(-r2 / 0.025);
+                float2 axis = normalize(u.sunUV - 0.5);
+                float along = dot(d, axis);
+                float across = dot(d, float2(-axis.y, axis.x));
+                float streak = exp(-abs(along) * 18.0) * exp(-abs(across) * 180.0);
+                float2 gA = 0.5 - d * 0.45;
+                float2 gB = 0.5 - d * 0.80;
+                float ghostA = exp(-dot(uv-gA, uv-gA) / 0.004);
+                float ghostB = exp(-dot(uv-gB, uv-gB) / 0.010);
+                float glare = core * 0.55 + haze * 0.10 + streak * 0.22 + ghostA * 0.07 + ghostB * 0.035;
+                hdr += float3(1.0, 0.91, 0.72) * glare * 2.2;
+            }
+
+            float exposure = max(u.intensity * 0.62, 0.1);
+            hdr *= exposure;
             hdr = hdr / (1.0 + hdr);
             hdr = pow(max(hdr,0.0), float3(1.0/2.2));
             return float4(hdr,1.0);
@@ -193,17 +213,16 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 float exitT = (cloudTop - uniforms.cameraPosition.y) / ray.y;
                 if (exitT > entryT) {
                     float span = min(exitT - entryT, 46.0);
-                    float stepLength = span / 48.0;
+                    float stepLength = span / 32.0;
                     float3 samplePoint = uniforms.cameraPosition.xyz + ray * (entryT + stepLength * 0.5);
 
-                    for (int i = 0; i < 48; ++i) {
+                    for (int i = 0; i < 32; ++i) {
                         float density = cloudDensity(samplePoint, uniforms.time);
 
                         if (density > 0.008) {
                             // Beer-Lambert-like light attenuation through the volume.
                             float lightProbeA = cloudDensity(samplePoint + sun * 4.0, uniforms.time);
-                            float lightProbeB = cloudDensity(samplePoint + sun * 10.0, uniforms.time);
-                            float lightTransmittance = exp(-(lightProbeA * 1.7 + lightProbeB * 0.8) * 2.2);
+                            float lightTransmittance = exp(-lightProbeA * 2.4);
                             float phase = 0.72 + 0.28 * pow(max(dot(ray, sun), 0.0), 3.0);
                             float lit = mix(0.38, 1.0, lightTransmittance) * phase;
 
@@ -224,50 +243,16 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
             float sunAlignment = max(dot(ray, sun), 0.0);
             float sunVisibility = 1.0 - clamp(cloudAccum * 2.0, 0.0, 1.0);
             float sunAngle = acos(clamp(dot(ray, sun), -1.0, 1.0));
-            float sunDisk = 1.0 - smoothstep(0.0040, 0.0068, sunAngle);
+            float sunDisk = 1.0 - smoothstep(0.0085, 0.0120, sunAngle);
             float corona = pow(sunAlignment, 96.0) * 0.85 * daylight;
             float halo = pow(sunAlignment, 24.0) * 0.24 * daylight;
             float broadGlow = pow(sunAlignment, 5.0) * 0.045 * daylight;
 
             float3 sunColor = float3(1.0, 0.93, 0.78);
-            skyColor += sunColor * sunDisk * sunVisibility * 1.8;
+            skyColor += sunColor * sunDisk * sunVisibility * 12.0;
             skyColor += sunColor * (corona + halo + broadGlow) * sunVisibility;
 
-            // Screen-space sun glare / lens flare, tied to the projected sun position.
-            if (daylight > 0.02 && sunVisibility > 0.02 && uniforms.sunScreen.w > 0.0) {
-                float2 sunUV = uniforms.sunScreen.xy;
-                float2 flareVector = uv - sunUV;
-                float flareDistance = length(flareVector);
-                float centerGlare = exp(-flareDistance * flareDistance / 0.035);
-                float ring = exp(-pow((flareDistance - 0.13) / 0.045, 2.0));
-                float2 axis = normalize(float2(0.7071, 0.7071));
-                float streakCoord = dot(flareVector, axis);
-                float crossCoord = dot(flareVector, float2(-axis.y, axis.x));
-                float streak = exp(-abs(streakCoord) * 11.0) * exp(-abs(crossCoord) * 70.0);
-                float glare = (centerGlare * 0.42 + ring * 0.12 + streak * 0.18)
-                              * daylight * sunVisibility;
-                skyColor += sunColor * glare;
-            }
-
-            // Cheap camera/screen effects. These are applied after sky/cloud lighting
-            // so they affect the complete visible image without another full-resolution pass.
-            if (uniforms.effects.x > 0.5) {
-                float2 centered = uv - 0.5;
-                float radial = dot(centered, centered) * 2.0;
-                float vignette = 1.0 - smoothstep(0.28, 0.72, radial) * uniforms.effects.y;
-                skyColor *= vignette;
-
-                float grainSeed = dot(float3(position.xy, uniforms.effects.w),
-                                      float3(12.9898, 78.233, 37.719));
-                float grain = fract(sin(grainSeed) * 43758.5453) - 0.5;
-                skyColor += grain * uniforms.effects.z;
-
-                // Mild exposure roll-off keeps bright sky/sun detail from hard clipping.
-                float exposureValue = max(uniforms.effects.w, 0.01);
-                skyColor = 1.0 - exp(-skyColor * exposureValue);
-            }
-
-            return float4(clamp(skyColor, 0.0, 1.0), 1.0);
+            return float4(max(skyColor, 0.0), 1.0);
         }
         """
 
@@ -406,7 +391,7 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
         skyEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         skyEncoder.endEncoding()
 
-        var postUniforms = PostUniformsCPU(sunUV: SIMD2(sunScreen.x, sunScreen.y), texel: SIMD2(1.0 / viewportSize.x, 1.0 / viewportSize.y), intensity: 1.6)
+        var postUniforms = PostUniformsCPU(sunUV: SIMD2(sunScreen.x, sunScreen.y), texel: SIMD2(1.0 / viewportSize.x, 1.0 / viewportSize.y), intensity: 1.35)
         guard let postEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         postEncoder.setRenderPipelineState(postPipeline)
         postEncoder.setFragmentTexture(hdrTexture, index: 0)
