@@ -316,7 +316,8 @@ final class MayhemMetalRenderer: NSObject, MTKViewDelegate {
                 vignetteStrength,
                 filmGrainStrength,
                 exposure
-            )
+            ),
+            sunScreen: sunScreen
         )
 
         encoder.setRenderPipelineState(skyPipeline)
